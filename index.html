@@ -1,0 +1,2282 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dojang Taekwondo — Portal Académico</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Exo+2:wght@300;400;500;600&display=swap"
+    rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    html,
+    body,
+    #root {
+      height: 100%
+    }
+
+    body {
+      background: #0b0b12;
+      color: #dde0ee;
+      font-family: 'Exo 2', sans-serif;
+      font-size: 14px;
+      line-height: 1.6
+    }
+
+    ::-webkit-scrollbar {
+      width: 5px
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #2a2a3f;
+      border-radius: 3px
+    }
+
+    .tk-input {
+      display: block;
+      width: 100%;
+      padding: 9px 12px;
+      background: #14141e;
+      border: 1px solid #2a2a40;
+      border-radius: 7px;
+      color: #dde0ee;
+      font-family: 'Exo 2', sans-serif;
+      font-size: 13px;
+      outline: none;
+      transition: border-color .15s
+    }
+
+    .tk-input:focus {
+      border-color: #c01212
+    }
+
+    .tk-input::placeholder {
+      color: #4a4a6a
+    }
+
+    select.tk-input option {
+      background: #14141e
+    }
+
+    textarea.tk-input {
+      resize: vertical
+    }
+
+    .tk-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #666688;
+      margin-bottom: 5px
+    }
+
+    .tk-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 7px;
+      font-family: 'Exo 2', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all .15s;
+      letter-spacing: .3px;
+      white-space: nowrap
+    }
+
+    .tk-btn:disabled {
+      opacity: .4;
+      cursor: not-allowed
+    }
+
+    .btn-red {
+      background: #c01212;
+      color: #fff
+    }
+
+    .btn-red:hover {
+      background: #d41414
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: #9090b0;
+      border: 1px solid #2a2a40
+    }
+
+    .btn-ghost:hover {
+      background: #1a1a28;
+      color: #dde0ee
+    }
+
+    .btn-gold {
+      background: #b8800e;
+      color: #fff
+    }
+
+    .btn-gold:hover {
+      background: #ca9010
+    }
+
+    .btn-blue {
+      background: #1d4ed8;
+      color: #fff
+    }
+
+    .btn-blue:hover {
+      background: #2563eb
+    }
+
+    .btn-green {
+      background: #166534;
+      color: #fff
+    }
+
+    .btn-green:hover {
+      background: #15803d
+    }
+
+    .btn-danger {
+      background: transparent;
+      color: #f87171;
+      border: 1px solid #7f1d1d
+    }
+
+    .btn-danger:hover {
+      background: #7f1d1d;
+      color: #fff
+    }
+
+    .btn-sm {
+      padding: 5px 11px;
+      font-size: 12px
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .72);
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px
+    }
+
+    .modal {
+      background: #13131e;
+      border: 1px solid #2a2a42;
+      border-radius: 12px;
+      padding: 26px;
+      width: 100%;
+      max-width: 500px;
+      max-height: 92vh;
+      overflow-y: auto
+    }
+
+    .modal-lg {
+      max-width: 680px
+    }
+
+    .modal-xl {
+      max-width: 840px
+    }
+
+    .modal-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 22px;
+      letter-spacing: 1.5px;
+      color: #f0f0fa;
+      margin-bottom: 20px
+    }
+
+    .form-row {
+      display: grid;
+      gap: 13px;
+      margin-bottom: 13px
+    }
+
+    .form-row-2 {
+      grid-template-columns: 1fr 1fr
+    }
+
+    .form-row-3 {
+      grid-template-columns: 1fr 1fr 1fr
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid #1e1e2e
+    }
+
+    .card {
+      background: #13131e;
+      border: 1px solid #1e1e2e;
+      border-radius: 10px
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .5px
+    }
+
+    .progress-bar {
+      height: 5px;
+      background: #1e1e2e;
+      border-radius: 3px;
+      overflow: hidden
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width .4s
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      color: #7070a0;
+      transition: all .15s;
+      margin-bottom: 2px
+    }
+
+    .nav-item:hover {
+      background: #1a1a28;
+      color: #c0c0e0
+    }
+
+    .nav-item.active {
+      background: rgba(192, 18, 18, .15);
+      color: #ff4444;
+      border-left: 2px solid #c01212
+    }
+
+    .stat-card {
+      background: #13131e;
+      border: 1px solid #1e1e2e;
+      border-radius: 10px;
+      padding: 18px 20px
+    }
+
+    .stat-value {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 34px;
+      letter-spacing: 1px;
+      line-height: 1.1
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: #666688;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      margin-top: 2px
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse
+    }
+
+    th {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .9px;
+      text-transform: uppercase;
+      color: #555577;
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid #1e1e2e
+    }
+
+    td {
+      padding: 11px 14px;
+      border-bottom: 1px solid #151520;
+      color: #b0b0cc;
+      font-size: 13px;
+      vertical-align: middle
+    }
+
+    tr:last-child td {
+      border-bottom: none
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, .02)
+    }
+
+    .belt-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600
+    }
+
+    .section-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 20px;
+      letter-spacing: 1.5px;
+      color: #f0f0fa
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 48px 20px;
+      color: #4a4a6a
+    }
+
+    .empty-icon {
+      font-size: 40px;
+      margin-bottom: 12px;
+      opacity: .5
+    }
+
+    .exam-timeline {
+      position: relative;
+      padding-left: 32px
+    }
+
+    .exam-timeline::before {
+      content: '';
+      position: absolute;
+      left: 11px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: linear-gradient(to bottom, #c01212, #2a2a40);
+      border-radius: 2px
+    }
+
+    .exam-node {
+      position: relative;
+      margin-bottom: 18px
+    }
+
+    .exam-node::before {
+      content: '';
+      position: absolute;
+      left: -25px;
+      top: 14px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #c01212;
+      border: 2px solid #0b0b12;
+      box-shadow: 0 0 8px rgba(192, 18, 18, .6)
+    }
+
+    .exam-node:last-child {
+      margin-bottom: 0
+    }
+
+    @keyframes pulse-border {
+
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(212, 150, 15, .35)
+      }
+
+      50% {
+        box-shadow: 0 0 0 6px rgba(212, 150, 15, 0)
+      }
+    }
+
+    @keyframes pulse-dot {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .3
+      }
+    }
+
+    .reminder-banner {
+      border-radius: 10px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 22px;
+      animation: pulse-border 2.4s infinite
+    }
+
+    .reminder-urgent {
+      background: rgba(239, 68, 68, .1);
+      border: 1px solid rgba(239, 68, 68, .4)
+    }
+
+    .reminder-soon {
+      background: rgba(212, 150, 15, .1);
+      border: 1px solid rgba(212, 150, 15, .4)
+    }
+
+    .reminder-ok {
+      background: rgba(74, 222, 128, .08);
+      border: 1px solid rgba(74, 222, 128, .25)
+    }
+
+    .pulse-dot {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      animation: pulse-dot 1.4s infinite
+    }
+
+    /* Inventario */
+    .inv-category-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 18px;
+      background: #0e0e18;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-bottom: 4px;
+      border: 1px solid #1a1a28;
+      transition: border-color .15s
+    }
+
+    .inv-category-header:hover {
+      border-color: #2a2a40
+    }
+
+    .inv-item-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto auto;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      border-bottom: 1px solid #151520
+    }
+
+    .inv-item-row:last-child {
+      border-bottom: none
+    }
+
+    .stock-badge {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: 'Bebas Neue', sans-serif;
+      letter-spacing: .5px
+    }
+
+    .stock-ok {
+      background: rgba(74, 222, 128, .15);
+      color: #4ade80
+    }
+
+    .stock-low {
+      background: rgba(212, 150, 15, .15);
+      color: #d4960f
+    }
+
+    .stock-out {
+      background: rgba(239, 68, 68, .15);
+      color: #f87171
+    }
+
+    .number-input-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 4px
+    }
+
+    .qty-btn {
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      border: 1px solid #2a2a40;
+      background: #14141e;
+      color: #dde0ee;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      transition: all .12s
+    }
+
+    .qty-btn:hover {
+      background: #1e1e30;
+      border-color: #4a4a6a
+    }
+
+    .qty-display {
+      width: 42px;
+      text-align: center;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 18px;
+      color: #f0f0fa;
+      letter-spacing: .5px
+    }
+
+    /* Success toast */
+    @keyframes slideIn {
+      from {
+        transform: translateY(40px);
+        opacity: 0
+      }
+
+      to {
+        transform: translateY(0);
+        opacity: 1
+      }
+    }
+
+    @keyframes slideOut {
+      from {
+        transform: translateY(0);
+        opacity: 1
+      }
+
+      to {
+        transform: translateY(40px);
+        opacity: 0
+      }
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #13131e;
+      border: 1px solid #4ade8044;
+      color: #4ade80;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      z-index: 9999;
+      animation: slideIn .3s ease
+    }
+
+    .toast-exit {
+      animation: slideOut .3s ease forwards
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useCallback, useRef } = React;
+
+    // ─── CONSTANTES ──────────────────────────────────────────────────────────────
+    const BELT_MAP = {
+      Blanco: { bg: "#e5e7eb", text: "#374151" }, Amarillo: { bg: "#fef08a", text: "#713f12" },
+      Naranja: { bg: "#fdba74", text: "#7c2d12" }, Verde: { bg: "#86efac", text: "#14532d" },
+      Azul: { bg: "#93c5fd", text: "#1e3a8a" }, Morado: { bg: "#d8b4fe", text: "#3b0764" },
+      Rojo: { bg: "#fca5a5", text: "#7f1d1d" }, Negro: { bg: "#374151", text: "#f9fafb" },
+    };
+    const BELT_LIST = ["Blanco", "Amarillo", "Naranja", "Verde", "Azul", "Morado", "Rojo", "Negro"];
+    const STATUS = {
+      en_proceso: { label: "En proceso", bg: "rgba(184,128,14,.15)", text: "#d4960f", bd: "rgba(184,128,14,.3)" },
+      liquidado: { label: "Liquidado", bg: "rgba(34,197,94,.15)", text: "#4ade80", bd: "rgba(34,197,94,.3)" },
+      vencido: { label: "Vencido", bg: "rgba(239,68,68,.15)", text: "#f87171", bd: "rgba(239,68,68,.3)" },
+    };
+    const EVENT_TYPE = {
+      ascenso: { label: "Ascenso de Grado", color: "#d4960f" },
+      torneo: { label: "Torneo", color: "#60a5fa" },
+      especial: { label: "Evento Especial", color: "#c084fc" },
+    };
+    const EXAM_MONTHS = 2;
+
+    // ─── INVENTARIO CATEGORÍAS ────────────────────────────────────────────────────
+    const INV_CATEGORIES = [
+      {
+        id: "uniformes", label: "Uniformes (Dobok)", icon: "👘",
+        items: [
+          { id: "dobok_xs", name: "Dobok Talla XS (Infantil)" },
+          { id: "dobok_s", name: "Dobok Talla S" },
+          { id: "dobok_m", name: "Dobok Talla M" },
+          { id: "dobok_l", name: "Dobok Talla L" },
+          { id: "dobok_xl", name: "Dobok Talla XL" },
+          { id: "dobok_xxl", name: "Dobok Talla XXL" },
+        ]
+      },
+      {
+        id: "cintas", label: "Cintas de Cinturón", icon: "🎗️",
+        items: BELT_LIST.map(b => ({ id: `cinta_${b.toLowerCase()}`, name: `Cinta ${b}` }))
+      },
+      {
+        id: "distintivos", label: "Distintivos de Cinturón", icon: "🏅",
+        items: [
+          { id: "dist_parche_club", name: "Parche del Club" },
+          { id: "dist_bandera", name: "Parche Bandera México" },
+          { id: "dist_nombre", name: "Distintivo de Nombre" },
+          { id: "dist_grado", name: "Parche de Grado/Dan" },
+          { id: "dist_competidor", name: "Parche Competidor" },
+        ]
+      },
+      {
+        id: "protectores", label: "Protectores de Combate", icon: "🛡️",
+        items: [
+          { id: "prot_empeinera_xs", name: "Empeinera XS" },
+          { id: "prot_empeinera_s", name: "Empeinera S" },
+          { id: "prot_empeinera_m", name: "Empeinera M" },
+          { id: "prot_empeinera_l", name: "Empeinera L" },
+          { id: "prot_espinillera_xs", name: "Espinillera XS" },
+          { id: "prot_espinillera_s", name: "Espinillera S" },
+          { id: "prot_espinillera_m", name: "Espinillera M" },
+          { id: "prot_espinillera_l", name: "Espinillera L" },
+          { id: "prot_peto_xs", name: "Peto (Hogu) XS" },
+          { id: "prot_peto_s", name: "Peto (Hogu) S" },
+          { id: "prot_peto_m", name: "Peto (Hogu) M" },
+          { id: "prot_peto_l", name: "Peto (Hogu) L" },
+          { id: "prot_guante_xs", name: "Guantes XS" },
+          { id: "prot_guante_s", name: "Guantes S" },
+          { id: "prot_guante_m", name: "Guantes M" },
+          { id: "prot_guante_l", name: "Guantes L" },
+          { id: "prot_antebracer_s", name: "Antebraceras S" },
+          { id: "prot_antebracer_m", name: "Antebraceras M" },
+          { id: "prot_antebracer_l", name: "Antebraceras L" },
+          { id: "prot_casco_xs", name: "Casco XS" },
+          { id: "prot_casco_s", name: "Casco S" },
+          { id: "prot_casco_m", name: "Casco M" },
+          { id: "prot_casco_l", name: "Casco L" },
+          { id: "prot_bucal_u", name: "Protector Bucal (universal)" },
+          { id: "prot_concha_s", name: "Concha (Prot. Zona Íntima) S" },
+          { id: "prot_concha_m", name: "Concha (Prot. Zona Íntima) M" },
+          { id: "prot_concha_l", name: "Concha (Prot. Zona Íntima) L" },
+        ]
+      },
+    ];
+
+    // ─── BASE DE DATOS INICIAL ────────────────────────────────────────────────────
+    const buildInitInventory = () => {
+      const inv = {};
+      INV_CATEGORIES.forEach(cat => cat.items.forEach(item => {
+        inv[item.id] = { qty: Math.floor(Math.random() * 8) + 1, minStock: 2 };
+      }));
+      return inv;
+    };
+
+    const INIT_DB = {
+      students: [
+        {
+          id: "s1", name: "Carlos Mendoza", age: 14, belt: "Azul", parent: "Roberto Mendoza", phone: "961-234-5678", email: "roberto.m@email.com", joined: "2023-03-15", active: true, user: "carlos_m", pass: "1234",
+          personal: { address: "Calle Insurgentes 45, Tuxtla", blood: "O+", emergency: "Roberto Mendoza", emergencyPhone: "961-234-5678", medNotes: "" }
+        },
+        {
+          id: "s2", name: "Sofía Ruiz", age: 10, belt: "Amarillo", parent: "Ana Ruiz", phone: "961-876-5432", email: "ana.ruiz@email.com", joined: "2024-01-10", active: true, user: "sofia_r", pass: "1234",
+          personal: { address: "", blood: "A+", emergency: "Ana Ruiz", emergencyPhone: "961-876-5432", medNotes: "" }
+        },
+        {
+          id: "s3", name: "Diego Torres", age: 17, belt: "Rojo", parent: "Miguel Torres", phone: "961-555-0011", email: "miguel.torres@email.com", joined: "2022-08-20", active: true, user: "diego_t", pass: "1234",
+          personal: { address: "", blood: "B+", emergency: "Miguel Torres", emergencyPhone: "961-555-0011", medNotes: "" }
+        },
+        {
+          id: "s4", name: "Valentina Cruz", age: 8, belt: "Blanco", parent: "Lucía Cruz", phone: "961-111-2222", email: "lucia.cruz@email.com", joined: "2025-09-01", active: true, user: "valentina_c", pass: "1234",
+          personal: { address: "", blood: "", emergency: "Lucía Cruz", emergencyPhone: "961-111-2222", medNotes: "" }
+        },
+      ],
+      payments: [
+        { id: "p1", sid: "s1", concept: "Dobok + Protectores completos", total: 2800, paid: 1400, installments: 4, instPaid: 2, instAmt: 700, start: "2026-03-01", nextDue: "2026-05-01", status: "en_proceso", notes: "" },
+        { id: "p2", sid: "s2", concept: "Dobok juvenil", total: 800, paid: 800, installments: 1, instPaid: 1, instAmt: 800, start: "2026-01-10", nextDue: null, status: "liquidado", notes: "" },
+        { id: "p3", sid: "s3", concept: "Casco + Petos para torneo", total: 3500, paid: 700, installments: 5, instPaid: 1, instAmt: 700, start: "2026-04-01", nextDue: "2026-04-25", status: "en_proceso", notes: "" },
+      ],
+      events: [
+        { id: "e1", title: "Examen de Ascenso — Cinturones Blancos", type: "ascenso", date: "2026-05-10", desc: "Examen trimestral para cinturón blanco a amarillo.", place: "Dojang Principal" },
+        { id: "e2", title: "Torneo Regional Chiapas 2026", type: "torneo", date: "2026-06-07", desc: "Competencia regional abierta a todas las categorías.", place: "Polideportivo Tuxtla" },
+        { id: "e3", title: "Examen de Ascenso — Cinturones Intermedios", type: "ascenso", date: "2026-05-24", desc: "Para alumnos de cinturón amarillo a azul.", place: "Dojang Principal" },
+        { id: "e4", title: "Copa Estatal Juvenil 2026", type: "torneo", date: "2026-07-19", desc: "Torneo para categoría infantil y juvenil.", place: "Centro Deportivo Municipal" },
+      ],
+      exams: [
+        { id: "x1", sid: "s1", date: "2023-05-20", fromBelt: "Blanco", toBelt: "Amarillo", passed: true, notes: "Excelente técnica en patadas." },
+        { id: "x2", sid: "s1", date: "2023-07-15", fromBelt: "Amarillo", toBelt: "Naranja", passed: true, notes: "Buen desempeño en sparring." },
+        { id: "x3", sid: "s1", date: "2023-09-10", fromBelt: "Naranja", toBelt: "Verde", passed: true, notes: "" },
+        { id: "x4", sid: "s1", date: "2024-02-08", fromBelt: "Verde", toBelt: "Azul", passed: true, notes: "Demostró liderazgo en el examen grupal." },
+        { id: "x5", sid: "s2", date: "2024-03-14", fromBelt: "Blanco", toBelt: "Amarillo", passed: true, notes: "Primera evaluación. Muy aplicada." },
+        { id: "x6", sid: "s3", date: "2022-10-05", fromBelt: "Blanco", toBelt: "Amarillo", passed: true, notes: "" },
+        { id: "x7", sid: "s3", date: "2022-12-03", fromBelt: "Amarillo", toBelt: "Naranja", passed: true, notes: "" },
+        { id: "x8", sid: "s3", date: "2023-02-11", fromBelt: "Naranja", toBelt: "Verde", passed: true, notes: "" },
+        { id: "x9", sid: "s3", date: "2023-04-22", fromBelt: "Verde", toBelt: "Azul", passed: true, notes: "" },
+        { id: "x10", sid: "s3", date: "2023-07-01", fromBelt: "Azul", toBelt: "Morado", passed: true, notes: "" },
+        { id: "x11", sid: "s3", date: "2023-09-16", fromBelt: "Morado", toBelt: "Rojo", passed: true, notes: "Mejor alumno del ciclo." },
+        { id: "x12", sid: "s2", date: "2026-02-08", fromBelt: "Amarillo", toBelt: "Naranja", passed: false, notes: "Necesita reforzar el poomsae Taegeuk 2." },
+      ],
+      admin: { user: "maestro", pass: "admin123", name: "Maestro Ramírez", email: "maestro@dojang.mx", phone: "961-000-0000", dojangName: "Dojang Taekwondo Tuxtla", address: "Av. Principal 123, Tuxtla Gutiérrez" },
+      inventory: buildInitInventory(),
+    };
+
+    // ─── UTILIDADES ───────────────────────────────────────────────────────────────
+    let _seq = 0;
+    const uid = (p) => `${p}${Date.now()}${_seq++}`;
+    const genStudentId = (name, existingIds = []) => {
+      const year = new Date().getFullYear();
+      const parts = name.trim().toUpperCase().split(/\s+/).filter(Boolean);
+      const initials = parts.length >= 2
+        ? parts[0][0] + parts[parts.length - 1][0]
+        : (parts[0] || "XX").slice(0, 2);
+      const base = `AT-${year}${initials}`;
+      const taken = existingIds.filter(id => id.startsWith(base)).map(id => parseInt(id.slice(-3)) || 0);
+      const next = taken.length ? Math.max(...taken) + 1 : 1;
+      return `${base}${String(next).padStart(3, "0")}`;
+    };
+    const todayStr = () => new Date().toISOString().split("T")[0];
+    const parseDate = (s) => new Date(s + "T12:00:00");
+    const fmtDate = (d) => {
+      if (!d) return "—";
+      const [y, m, day] = d.split("-");
+      return `${parseInt(day)} ${["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"][+m - 1]} ${y}`;
+    };
+    const mxn = (n) => `$${Number(n).toLocaleString("es-MX")}`;
+    function monthsBetween(d1, d2) { const a = parseDate(d1), b = parseDate(d2); return (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth()) }
+    function addMonths(dateStr, n) { if (!dateStr) return todayStr(); const d = parseDate(dateStr); if (isNaN(d.getTime())) return todayStr(); d.setMonth(d.getMonth() + n); return d.toISOString().split("T")[0] }
+    function daysUntil(dateStr) { const t = parseDate(todayStr()), tgt = parseDate(dateStr); return Math.round((tgt - t) / (1000 * 60 * 60 * 24)) }
+
+    // ─── TOAST ────────────────────────────────────────────────────────────────────
+    const Toast = ({ msg, onDone }) => {
+      const [exiting, setExiting] = useState(false);
+      useEffect(() => {
+        const t1 = setTimeout(() => setExiting(true), 2200);
+        const t2 = setTimeout(() => onDone(), 2600);
+        return () => { clearTimeout(t1); clearTimeout(t2) };
+      }, []);
+      return <div className={`toast ${exiting ? "toast-exit" : ""}`}>✓ {msg}</div>;
+    };
+
+    // ─── API REAL (conectada a backend) ───────────────────────────────────────────
+    const API_URL = "https://dojang-backend.onrender.com";
+    let _token = null;
+
+    async function apiFetch(path, options = {}) {
+      const headers = { "Content-Type": "application/json" };
+      if (_token) headers["Authorization"] = `Bearer ${_token}`;
+      const res = await fetch(API_URL + path, { ...options, headers });
+      return res.json();
+    }
+
+    function createApi(db, setDb) {
+      const mutate = (fn) => setDb(prev => ({ ...prev, ...fn(prev) }));
+      return {
+        // ── LOGIN (usa API real) ──
+        login: async (user, pass) => {
+          try {
+            const data = await apiFetch("/api/auth/login", {
+              method: "POST",
+              body: JSON.stringify({ username: user, password: pass })
+            });
+            if (data.token) {
+              _token = data.token;
+              return { role: data.rol === "admin" ? "admin" : data.rol, name: user, id: user };
+            }
+            return null;
+          } catch (e) { return null; }
+        },
+        // ── ALUMNOS (API real) ──
+        getStudents: () => db.students,
+        getStudent: (id) => db.students.find(s => s.id === id),
+        addStudent: async (d) => {
+          const beltMap = { "Blanco": 1, "Amarillo": 2, "Naranja": 3, "Verde": 4, "Azul": 5, "Morado": 6, "Rojo": 7, "Negro": 8 };
+          try {
+            await apiFetch("/api/alumnos/registro-completo", {
+              method: "POST", body: JSON.stringify({
+                num_control: d.user || d.id,
+                nombre: d.name,
+                fecha_nacimiento: d.dob || "2000-01-01",
+                id_cinta_actual: beltMap[d.belt] || 1,
+                responsable_nombre: d.parent || "Sin tutor",
+                responsable_telefono: d.phone || "",
+                responsable_direccion: d.personal?.address || "",
+                username: d.user || d.id,
+                password: d.pass || "CAMBIAR",
+                email: d.email || "",
+                direccion: d.personal?.address || "",
+                tipo_sangre: d.personal?.blood || "",
+                contacto_emergencia: d.personal?.emergency || "",
+                tel_emergencia: d.personal?.emergencyPhone || "",
+                notas_medicas: d.personal?.medNotes || ""
+              })
+            });
+          } catch (e) { console.error("Error registrando alumno:", e); }
+          mutate(db => ({
+            students: [...db.students, {
+              ...d, id: d.user || d.id,
+              personal: d.personal || { address: "", blood: "", emergency: "", emergencyPhone: "", medNotes: "" }
+            }]
+          }));
+        },
+        updateStudent: async (id, d) => {
+          const beltMap = { "Blanco": 1, "Amarillo": 2, "Naranja": 3, "Verde": 4, "Azul": 5, "Morado": 6, "Rojo": 7, "Negro": 8 };
+          try {
+            await apiFetch(`/api/alumnos/${id}`, {
+              method: "PUT", body: JSON.stringify({
+                nombre: d.name,
+                fecha_nacimiento: d.dob || "2000-01-01",
+                id_cinta_actual: beltMap[d.belt] || 1,
+                email: d.email || "",
+                direccion: d.personal?.address || "",
+                tipo_sangre: d.personal?.blood || "",
+                contacto_emergencia: d.personal?.emergency || "",
+                tel_emergencia: d.personal?.emergencyPhone || "",
+                notas_medicas: d.personal?.medNotes || ""
+              })
+            });
+          } catch (e) { console.error("Error actualizando alumno:", e); }
+          mutate(db => ({ students: db.students.map(s => s.id === id ? { ...s, ...d } : s) }));
+        },
+        updateStudentPersonal: (id, personal) => mutate(db => ({ students: db.students.map(s => s.id === id ? { ...s, personal: { ...s.personal, ...personal } } : s) })),
+        deleteStudent: async (id) => {
+          try { await apiFetch(`/api/alumnos/${id}`, { method: "DELETE" }); } catch (e) { console.error("Error eliminando:", e); }
+          mutate(db => ({ students: db.students.filter(s => s.id !== id) }));
+        },
+        // ── PAGOS (API real) ──
+        getPayments: () => db.payments,
+        getStudentPayments: (sid) => db.payments.filter(p => p.sid === sid),
+        addPayment: async (d) => {
+          try {
+            await apiFetch("/api/pagos", {
+              method: "POST", body: JSON.stringify({
+                monto_total: d.total,
+                monto_abonado: d.paid || 0,
+                tipo_pago: d.concept,
+                metodo_pago: d.installments > 1 ? "A plazos" : "Contado",
+                estado_pago: "Pendiente",
+                num_control_responsable: d.sid
+              })
+            });
+          } catch (e) { }
+          mutate(db => ({ payments: [...db.payments, { ...d, id: uid("p") }] }));
+        },
+        updatePayment: (id, d) => mutate(db => ({ payments: db.payments.map(p => p.id === id ? { ...p, ...d } : p) })),
+        deletePayment: (id) => mutate(db => ({ payments: db.payments.filter(p => p.id !== id) })),
+        registerInstallment: async (id) => {
+          try { await apiFetch(`/api/pagos/${id}/abonar`, { method: "PUT", body: JSON.stringify({ abono: db.payments.find(p => p.id === id)?.instAmt || 0 }) }); } catch (e) { }
+          mutate(db => ({
+            payments: db.payments.map(p => {
+              if (p.id !== id) return p;
+              const ni = p.instPaid + 1, np = p.paid + p.instAmt, done = ni >= p.installments;
+              return { ...p, instPaid: ni, paid: np, status: done ? "liquidado" : "en_proceso", nextDue: done ? null : p.nextDue };
+            })
+          }));
+        },
+        // ── EVENTOS (solo local por ahora) ──
+        getAdmin: () => db.admin,
+        updateAdmin: (d) => mutate(db => ({ admin: { ...db.admin, ...d } })),
+        getEvents: () => db.events.slice().sort((a, b) => a.date.localeCompare(b.date)),
+        addEvent: (d) => mutate(db => ({ events: [...db.events, { ...d, id: uid("e") }] })),
+        updateEvent: (id, d) => mutate(db => ({ events: db.events.map(e => e.id === id ? { ...e, ...d } : e) })),
+        deleteEvent: (id) => mutate(db => ({ events: db.events.filter(e => e.id !== id) })),
+        // ── EXÁMENES (API real) ──
+        getAllExams: async () => {
+          try {
+            const data = await apiFetch("/api/examenes");
+            return data.map(x => ({
+              id: String(x.id_examen),
+              sid: x.num_control_alumno,
+              date: x.fecha,
+              belt: x.cinta_aspirada_color || "Blanco",
+              result: x.resultado === "Aprobado" ? "pass" : x.resultado === "Reprobado" ? "fail" : "pending",
+              notes: x.observaciones || ""
+            }));
+          } catch (e) { return db.exams; }
+        },
+        getStudentExams: (sid) => db.exams.filter(x => x.sid === sid).slice().sort((a, b) => a.date.localeCompare(b.date)),
+        addExam: async (d) => {
+          try {
+            await apiFetch("/api/examenes", {
+              method: "POST", body: JSON.stringify({
+                fecha: d.date,
+                observaciones: d.notes,
+                resultado: d.result === "pass" ? "Aprobado" : d.result === "fail" ? "Reprobado" : "Pendiente",
+                num_control_alumno: d.sid,
+                id_cinta_aspirada: 1
+              })
+            });
+          } catch (e) { }
+          mutate(db => ({ exams: [...db.exams, { ...d, id: uid("x") }] }));
+        },
+        updateExam: (id, d) => mutate(db => ({ exams: db.exams.map(x => x.id === id ? { ...x, ...d } : x) })),
+        deleteExam: (id) => mutate(db => ({ exams: db.exams.filter(x => x.id !== id) })),
+        getNextExamDate: (sid) => {
+          const xs = db.exams.filter(x => x.sid === sid).slice().sort((a, b) => b.date.localeCompare(a.date));
+          const s = db.students.find(s => s.id === sid);
+          return addMonths(xs.length > 0 ? xs[0].date : (s?.joined || todayStr()), EXAM_MONTHS);
+        },
+        // ── INVENTARIO (API real) ──
+        getInventory: () => db.inventory,
+        updateInventoryItem: (itemId, data) => mutate(db => ({ inventory: { ...db.inventory, [itemId]: { ...db.inventory[itemId], ...data } } })),
+        adjustStock: async (itemId, delta) => {
+          mutate(db => {
+            const cur = db.inventory[itemId] || { qty: 0, minStock: 2 };
+            return { inventory: { ...db.inventory, [itemId]: { ...cur, qty: Math.max(0, cur.qty + delta) } } };
+          });
+        },
+      };
+    }
+
+    // ─── ICONOS ───────────────────────────────────────────────────────────────────
+    const ICONS = {
+      home: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
+      users: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z",
+      payment: "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z",
+      calendar: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+      logout: "M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1",
+      plus: "M12 4v16m8-8H4",
+      edit: "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z",
+      trash: "M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16",
+      check: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
+      user: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
+      x: "M6 18L18 6M6 6l12 12",
+      diploma: "M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222",
+      clock: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
+      bell: "M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9",
+      box: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4",
+      settings: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
+      chevronDown: "M19 9l-7 7-7-7",
+      chevronRight: "M9 5l7 7-7 7",
+      warning: "M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z",
+    };
+    const Icon = ({ name, size = 16 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        {(ICONS[name] || ICONS.x).split(" M").map((p, i) => (
+          <path key={i} d={i === 0 ? p : "M" + p} />
+        ))}
+      </svg>
+    );
+
+    // ─── UI ATOMS ─────────────────────────────────────────────────────────────────
+    const BeltBadge = ({ belt }) => {
+      const b = BELT_MAP[belt] || BELT_MAP.Blanco;
+      return <span className="belt-badge" style={{ background: b.bg, color: b.text }}><span>◼</span>{belt}</span>;
+    };
+    const StatusTag = ({ status }) => {
+      const s = STATUS[status] || STATUS.en_proceso;
+      return <span className="tag" style={{ background: s.bg, color: s.text, border: `1px solid ${s.bd}` }}>{s.label}</span>;
+    };
+    const EventTypeBadge = ({ type }) => {
+      const e = EVENT_TYPE[type] || EVENT_TYPE.especial;
+      return <span className="tag" style={{ background: `${e.color}22`, color: e.color, border: `1px solid ${e.color}44` }}>{e.label}</span>;
+    };
+    const ProgressBar = ({ value, max }) => {
+      const pct = max ? Math.min(100, (value / max) * 100) : 0;
+      const color = pct >= 100 ? "#4ade80" : pct >= 50 ? "#d4960f" : "#c01212";
+      return <div className="progress-bar"><div className="progress-fill" style={{ width: `${pct}%`, background: color }} /></div>;
+    };
+
+    // ─── MODALES ──────────────────────────────────────────────────────────────────
+    const Modal = ({ title, onClose, children, lg, xl }) => (
+      <div className="overlay" onClick={onClose}>
+        <div className={`modal ${xl ? "modal-xl" : lg ? "modal-lg" : ""}`} onClick={e => e.stopPropagation()}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <div className="modal-title">{title}</div>
+            <button className="tk-btn btn-ghost btn-sm" onClick={onClose}><Icon name="x" size={14} /></button>
+          </div>
+          {children}
+        </div>
+      </div>
+    );
+    const ConfirmModal = ({ message, onConfirm, onClose }) => (
+      <Modal title="CONFIRMAR ACCIÓN" onClose={onClose}>
+        <p style={{ color: "#9090b0", marginBottom: 20 }}>{message}</p>
+        <div className="form-actions">
+          <button className="tk-btn btn-ghost" onClick={onClose}>Cancelar</button>
+          <button className="tk-btn btn-danger" onClick={() => { onConfirm(); onClose(); }}>Eliminar</button>
+        </div>
+      </Modal>
+    );
+
+    // ─── EXAM REMINDER ────────────────────────────────────────────────────────────
+    const ExamReminder = ({ nextDate }) => {
+      const days = daysUntil(nextDate);
+      if (days < 0) return <div className="reminder-banner reminder-urgent"><div style={{ fontSize: 28 }}>⚠️</div><div style={{ flex: 1 }}><div style={{ color: "#f87171", fontWeight: 700, fontSize: 14 }}>Examen sin registrar</div><div style={{ color: "#9090b0", fontSize: 12, marginTop: 2 }}>La fecha estimada fue el <strong style={{ color: "#fca5a5" }}>{fmtDate(nextDate)}</strong>. Habla con el Maestro Ramírez para confirmar.</div></div></div>;
+      if (days === 0) return <div className="reminder-banner reminder-urgent"><div style={{ fontSize: 28 }}>🔔</div><div style={{ flex: 1 }}><div style={{ color: "#f87171", fontWeight: 700, fontSize: 14 }}>¡Hoy es tu examen!</div><div style={{ color: "#9090b0", fontSize: 12, marginTop: 2 }}>Mucha suerte. ¡Tú puedes!</div></div></div>;
+      if (days <= 7) return <div className="reminder-banner reminder-urgent"><div style={{ fontSize: 28 }}>🔴</div><div style={{ flex: 1 }}><div style={{ color: "#f87171", fontWeight: 700, fontSize: 14 }}>Examen muy próximo — faltan {days} día{days !== 1 ? "s" : ""}</div><div style={{ color: "#9090b0", fontSize: 12, marginTop: 2 }}>Fecha estimada: <strong style={{ color: "#fca5a5" }}>{fmtDate(nextDate)}</strong>. ¡Intensifica tu entrenamiento!</div></div></div>;
+      if (days <= 21) return <div className="reminder-banner reminder-soon"><div style={{ fontSize: 28 }}>🟡</div><div style={{ flex: 1 }}><div style={{ color: "#d4960f", fontWeight: 700, fontSize: 14 }}>Tu próximo examen se acerca — faltan {days} días</div><div style={{ color: "#9090b0", fontSize: 12, marginTop: 2 }}>Fecha estimada: <strong style={{ color: "#fef08a" }}>{fmtDate(nextDate)}</strong>. Repasa tu poomsae.</div></div></div>;
+      return <div className="reminder-banner reminder-ok"><div style={{ fontSize: 28 }}>🟢</div><div style={{ flex: 1 }}><div style={{ color: "#4ade80", fontWeight: 700, fontSize: 14 }}>Próximo examen en {days} días</div><div style={{ color: "#9090b0", fontSize: 12, marginTop: 2 }}>Fecha estimada: <strong style={{ color: "#86efac" }}>{fmtDate(nextDate)}</strong>. Sigue entrenando con constancia.</div></div></div>;
+    };
+
+    // ─── EXAM TIMELINE ────────────────────────────────────────────────────────────
+    const ExamTimeline = ({ exams }) => {
+      if (exams.length === 0) return <div className="card empty-state" style={{ padding: 48 }}><div className="empty-icon">🎓</div><div>Sin exámenes registrados</div><div style={{ fontSize: 12, marginTop: 8, color: "#333355" }}>Tu historial aparecerá aquí.</div></div>;
+      return (
+        <div className="exam-timeline">
+          {exams.map((exam, i) => {
+            const prev = i > 0 ? exams[i - 1].date : null;
+            const months = prev ? monthsBetween(prev, exam.date) : null;
+            const bm = BELT_MAP[exam.toBelt] || BELT_MAP.Blanco;
+            return (
+              <div key={exam.id} className="exam-node">
+                {months !== null && <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}><div style={{ height: 1, flex: 1, background: "#1e1e2e", maxWidth: 60 }} /><span style={{ fontSize: 10, color: "#555577", background: "#0e0e18", border: "1px solid #1e1e2e", padding: "2px 8px", borderRadius: 20, whiteSpace: "nowrap" }}>{months} mes{months !== 1 ? "es" : ""} después</span><div style={{ height: 1, flex: 1, background: "#1e1e2e", maxWidth: 20 }} /></div>}
+                <div className="card" style={{ padding: "14px 18px", borderLeft: `3px solid ${exam.passed ? bm.bg : "#7f1d1d"}`, opacity: exam.passed ? 1 : 0.82 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+                        <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 15, letterSpacing: 1, color: "#f0f0fa" }}>Examen #{i + 1}</span>
+                        {exam.passed ? <span className="tag" style={{ background: "rgba(74,222,128,.15)", color: "#4ade80", border: "1px solid rgba(74,222,128,.3)" }}>✓ Aprobado</span> : <span className="tag" style={{ background: "rgba(239,68,68,.15)", color: "#f87171", border: "1px solid rgba(239,68,68,.3)" }}>✗ No aprobado</span>}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <BeltBadge belt={exam.fromBelt} /><span style={{ color: "#555577", fontSize: 12 }}>→</span><BeltBadge belt={exam.toBelt} />
+                      </div>
+                      {exam.notes && <div style={{ marginTop: 8, fontSize: 12, color: "#7070a0", fontStyle: "italic" }}>"{exam.notes}"</div>}
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <div style={{ color: "#dde0ee", fontSize: 13, fontWeight: 500 }}>{fmtDate(exam.date)}</div>
+                      {months !== null && <div style={{ fontSize: 11, color: "#555577", marginTop: 2 }}>+{months} mes{months !== 1 ? "es" : ""}</div>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    };
+
+    // ─── EXAM FORM ────────────────────────────────────────────────────────────────
+    const ExamForm = ({ initial, sid, onSave, onClose }) => {
+      const empty = { sid: sid || "", date: todayStr(), fromBelt: "Blanco", toBelt: "Amarillo", passed: true, notes: "" };
+      const [f, setF] = useState(initial ? { ...initial } : empty);
+      const set = (k, v) => setF(p => ({ ...p, [k]: v }));
+      const submit = (e) => { e.preventDefault(); onSave(f); onClose(); };
+      return (
+        <form onSubmit={submit}>
+          <div className="form-row form-row-2">
+            <div><label className="tk-label">Cinturón anterior</label><select className="tk-input" value={f.fromBelt} onChange={e => set("fromBelt", e.target.value)}>{BELT_LIST.map(b => <option key={b}>{b}</option>)}</select></div>
+            <div><label className="tk-label">Cinturón objetivo</label><select className="tk-input" value={f.toBelt} onChange={e => set("toBelt", e.target.value)}>{BELT_LIST.map(b => <option key={b}>{b}</option>)}</select></div>
+          </div>
+          <div className="form-row form-row-2">
+            <div><label className="tk-label">Fecha del examen</label><input className="tk-input" type="date" required value={f.date} onChange={e => set("date", e.target.value)} /></div>
+            <div><label className="tk-label">Resultado</label><select className="tk-input" value={f.passed ? "si" : "no"} onChange={e => set("passed", e.target.value === "si")}><option value="si">✓ Aprobado</option><option value="no">✗ No aprobado</option></select></div>
+          </div>
+          <div className="form-row"><div><label className="tk-label">Observaciones del maestro</label><textarea className="tk-input" rows={2} value={f.notes} onChange={e => set("notes", e.target.value)} placeholder="Ej. Excelente poomsae, mejorar velocidad..." /></div></div>
+          <div className="form-actions">
+            <button type="button" className="tk-btn btn-ghost" onClick={onClose}>Cancelar</button>
+            <button type="submit" className="tk-btn btn-red">Guardar examen</button>
+          </div>
+        </form>
+      );
+    };
+
+    // ─── STUDENT EXAMS MODAL ──────────────────────────────────────────────────────
+    const StudentExamsModal = ({ student, api, onClose }) => {
+      const [sub, setSub] = useState(null);
+      const exams = api.getStudentExams(student.id);
+      const nextDate = api.getNextExamDate(student.id);
+      const days = daysUntil(nextDate);
+      const approvedCount = exams.filter(x => x.passed).length;
+      return (
+        <Modal title={`EXÁMENES — ${student.name.toUpperCase()}`} onClose={onClose} xl>
+          <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+            {[{ label: "Cinturón actual", val: <BeltBadge belt={student.belt} /> }, { label: "Exámenes realizados", val: <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 24, color: "#dde0ee" }}>{exams.length}</span> }, { label: "Aprobados", val: <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 24, color: "#4ade80" }}>{approvedCount}</span> }].map(item => (
+              <div key={item.label} style={{ background: "#0e0e18", borderRadius: 8, padding: "10px 16px", flex: 1 }}><div style={{ fontSize: 10, color: "#555577", textTransform: "uppercase", letterSpacing: .7, marginBottom: 5 }}>{item.label}</div>{item.val}</div>
+            ))}
+            <div style={{ background: "#0e0e18", borderRadius: 8, padding: "10px 16px", flex: 2 }}>
+              <div style={{ fontSize: 10, color: "#555577", textTransform: "uppercase", letterSpacing: .7, marginBottom: 5 }}>Próximo examen estimado</div>
+              <div style={{ color: days <= 7 ? "#f87171" : days <= 21 ? "#d4960f" : "#4ade80", fontSize: 13, fontWeight: 600 }}>{fmtDate(nextDate)} <span style={{ color: "#555577", fontWeight: 400, fontSize: 11 }}>({days >= 0 ? `en ${days}d` : `hace ${Math.abs(days)}d`})</span></div>
+            </div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+            <div style={{ fontSize: 12, color: "#555577", textTransform: "uppercase", letterSpacing: .8 }}>Historial de exámenes</div>
+            <button className="tk-btn btn-red btn-sm" onClick={() => setSub("add")}><Icon name="plus" size={13} />Agregar</button>
+          </div>
+          {exams.length === 0 ? <div className="empty-state" style={{ padding: 30 }}><div className="empty-icon">🎓</div><div>Sin exámenes registrados</div></div> : (
+            <div className="card">
+              <table>
+                <thead><tr><th>#</th><th>Fecha</th><th>Transición</th><th>Intervalo</th><th>Resultado</th><th>Notas</th><th></th></tr></thead>
+                <tbody>
+                  {exams.map((x, i) => {
+                    const prev = i > 0 ? exams[i - 1].date : null;
+                    const months = prev ? monthsBetween(prev, x.date) : null;
+                    return (
+                      <tr key={x.id}>
+                        <td style={{ color: "#555577", fontSize: 12 }}>{i + 1}</td>
+                        <td>{fmtDate(x.date)}</td>
+                        <td><div style={{ display: "flex", alignItems: "center", gap: 6 }}><BeltBadge belt={x.fromBelt} /><span style={{ color: "#555577" }}>→</span><BeltBadge belt={x.toBelt} /></div></td>
+                        <td>{months !== null ? <span style={{ background: "#1a1a28", padding: "2px 8px", borderRadius: 20, fontSize: 11, color: "#9090b0" }}>{months} mes{months !== 1 ? "es" : ""}</span> : <span style={{ color: "#333355" }}>—</span>}</td>
+                        <td>{x.passed ? <span className="tag" style={{ background: "rgba(74,222,128,.15)", color: "#4ade80", border: "1px solid rgba(74,222,128,.3)" }}>Aprobado</span> : <span className="tag" style={{ background: "rgba(239,68,68,.15)", color: "#f87171", border: "1px solid rgba(239,68,68,.3)" }}>No aprobado</span>}</td>
+                        <td style={{ maxWidth: 160, fontSize: 12, color: "#666688", fontStyle: "italic" }}>{x.notes || "—"}</td>
+                        <td><div style={{ display: "flex", gap: 5 }}><button className="tk-btn btn-ghost btn-sm" onClick={() => setSub({ edit: x })}><Icon name="edit" size={12} /></button><button className="tk-btn btn-danger btn-sm" onClick={() => setSub({ del: x.id })}><Icon name="trash" size={12} /></button></div></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <div className="form-actions" style={{ borderTop: "none", paddingTop: 0 }}><button className="tk-btn btn-ghost" onClick={onClose}>Cerrar</button></div>
+          {sub === "add" && <Modal title="REGISTRAR EXAMEN" onClose={() => setSub(null)}><ExamForm sid={student.id} onSave={d => api.addExam(d)} onClose={() => setSub(null)} /></Modal>}
+          {sub?.edit && <Modal title="EDITAR EXAMEN" onClose={() => setSub(null)}><ExamForm initial={sub.edit} sid={student.id} onSave={d => api.updateExam(sub.edit.id, d)} onClose={() => setSub(null)} /></Modal>}
+          {sub?.del && <ConfirmModal message="¿Eliminar este registro de examen?" onConfirm={() => api.deleteExam(sub.del)} onClose={() => setSub(null)} />}
+        </Modal>
+      );
+    };
+
+    // ─── PERFIL ADMIN ─────────────────────────────────────────────────────────────
+    const AdminProfile = ({ api, onToast }) => {
+      const admin = api.getAdmin();
+      const [f, setF] = useState({ ...admin });
+      const [changed, setChanged] = useState(false);
+      const set = (k, v) => { setF(p => ({ ...p, [k]: v })); setChanged(true); };
+      const save = () => { api.updateAdmin(f); setChanged(false); onToast("Perfil actualizado correctamente"); };
+      const [showPass, setShowPass] = useState(false);
+      return (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+            <div className="section-title">MI PERFIL — ADMINISTRADOR</div>
+            {changed && <button className="tk-btn btn-red" onClick={save}><Icon name="check" size={14} />Guardar cambios</button>}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <div className="card" style={{ padding: 24 }}>
+              <div style={{ fontSize: 11, color: "#555577", textTransform: "uppercase", letterSpacing: .8, marginBottom: 16 }}>Datos personales</div>
+              <div className="form-row">
+                <div><label className="tk-label">Nombre completo</label><input className="tk-input" value={f.name} onChange={e => set("name", e.target.value)} /></div>
+                <div><label className="tk-label">Teléfono</label><input className="tk-input" value={f.phone} onChange={e => set("phone", e.target.value)} /></div>
+                <div><label className="tk-label">Correo electrónico</label><input className="tk-input" type="email" value={f.email} onChange={e => set("email", e.target.value)} /></div>
+              </div>
+            </div>
+            <div className="card" style={{ padding: 24 }}>
+              <div style={{ fontSize: 11, color: "#555577", textTransform: "uppercase", letterSpacing: .8, marginBottom: 16 }}>Datos del Dojang</div>
+              <div className="form-row">
+                <div><label className="tk-label">Nombre del Dojang</label><input className="tk-input" value={f.dojangName} onChange={e => set("dojangName", e.target.value)} /></div>
+                <div><label className="tk-label">Dirección</label><input className="tk-input" value={f.address} onChange={e => set("address", e.target.value)} /></div>
+              </div>
+            </div>
+          </div>
+          <div className="card" style={{ padding: 24, marginBottom: 16 }}>
+            <div style={{ fontSize: 11, color: "#555577", textTransform: "uppercase", letterSpacing: .8, marginBottom: 16 }}>Credenciales de acceso</div>
+            <div className="form-row form-row-2">
+              <div><label className="tk-label">Usuario</label><input className="tk-input" value={f.user} onChange={e => set("user", e.target.value)} /></div>
+              <div>
+                <label className="tk-label">Contraseña</label>
+                <div style={{ position: "relative" }}>
+                  <input className="tk-input" type={showPass ? "text" : "password"} value={f.pass} onChange={e => set("pass", e.target.value)} style={{ paddingRight: 80 }} />
+                  <button type="button" onClick={() => setShowPass(p => !p)} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#666688", cursor: "pointer", fontSize: 11, fontFamily: "'Exo 2',sans-serif" }}>{showPass ? "Ocultar" : "Mostrar"}</button>
+                </div>
+              </div>
+            </div>
+            <div style={{ marginTop: 10, padding: "10px 14px", background: "rgba(192,18,18,.08)", borderRadius: 8, border: "1px solid rgba(192,18,18,.2)", fontSize: 12, color: "#9090b0" }}>
+              ⚠️ Cambiar usuario o contraseña cerrará tu sesión automáticamente al guardar.
+            </div>
+          </div>
+          {changed && (
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button className="tk-btn btn-red" onClick={save}><Icon name="check" size={14} />Guardar todos los cambios</button>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    // ─── INVENTARIO ADMIN ─────────────────────────────────────────────────────────
+    const AdminInventory = ({ api, onToast }) => {
+      const inv = api.getInventory();
+      const [openCats, setOpenCats] = useState({ "uniformes": true, "cintas": false, "distintivos": false, "protectores": true });
+      const [editItem, setEditItem] = useState(null);
+      const toggle = (id) => setOpenCats(p => ({ ...p, [id]: !p[id] }));
+
+      const totalItems = INV_CATEGORIES.reduce((a, c) => a + c.items.length, 0);
+      const lowStock = INV_CATEGORIES.reduce((a, c) => a + c.items.filter(it => { const d = inv[it.id]; return d && d.qty > 0 && d.qty <= d.minStock; }).length, 0);
+      const outStock = INV_CATEGORIES.reduce((a, c) => a + c.items.filter(it => { const d = inv[it.id]; return d && d.qty === 0; }).length, 0);
+
+      return (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <div className="section-title">INVENTARIO</div>
+            <div style={{ fontSize: 12, color: "#555577" }}>Actualización en tiempo real</div>
+          </div>
+
+          {/* Stats */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 20 }}>
+            {[
+              { label: "Total artículos", val: totalItems, color: "#dde0ee" },
+              { label: "En stock", val: totalItems - lowStock - outStock, color: "#4ade80" },
+              { label: "Stock bajo", val: lowStock, color: "#d4960f" },
+              { label: "Sin stock", val: outStock, color: "#f87171" },
+            ].map(s => (
+              <div key={s.label} className="stat-card">
+                <div className="stat-value" style={{ color: s.color }}>{s.val}</div>
+                <div className="stat-label">{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {outStock > 0 && (
+            <div style={{ background: "rgba(239,68,68,.08)", border: "1px solid rgba(239,68,68,.3)", borderRadius: 10, padding: "12px 18px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+              <Icon name="warning" size={18} /><span style={{ color: "#f87171", fontSize: 13, fontWeight: 600 }}>{outStock} artículo{outStock !== 1 ? "s" : ""} sin stock — revisa tu inventario</span>
+            </div>
+          )}
+
+          {/* Categorías */}
+          {INV_CATEGORIES.map(cat => {
+            const catLow = cat.items.filter(it => { const d = inv[it.id]; return d && d.qty > 0 && d.qty <= d.minStock; }).length;
+            const catOut = cat.items.filter(it => { const d = inv[it.id]; return !d || d.qty === 0; }).length;
+            return (
+              <div key={cat.id} style={{ marginBottom: 12 }}>
+                <div className="inv-category-header" onClick={() => toggle(cat.id)}>
+                  <span style={{ fontSize: 20 }}>{cat.icon}</span>
+                  <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 17, letterSpacing: 1, color: "#f0f0fa", flex: 1 }}>{cat.label}</span>
+                  {catOut > 0 && <span className="tag stock-out">{catOut} sin stock</span>}
+                  {catLow > 0 && <span className="tag stock-low" style={{ marginLeft: 6 }}>{catLow} bajo</span>}
+                  <span style={{ color: "#555577", marginLeft: 8, transition: "transform .2s", display: "block", transform: openCats[cat.id] ? "rotate(180deg)" : "rotate(0)" }}><Icon name="chevronDown" size={16} /></span>
+                </div>
+                {openCats[cat.id] && (
+                  <div className="card" style={{ marginTop: 4 }}>
+                    {cat.items.map(item => {
+                      const d = inv[item.id] || { qty: 0, minStock: 2 };
+                      const stockClass = d.qty === 0 ? "stock-out" : d.qty <= d.minStock ? "stock-low" : "stock-ok";
+                      return (
+                        <div key={item.id} className="inv-item-row">
+                          <div>
+                            <div style={{ color: "#dde0ee", fontSize: 13, fontWeight: 500 }}>{item.name}</div>
+                            <div style={{ fontSize: 11, color: "#555577", marginTop: 2 }}>Mín. recomendado: {d.minStock} unid.</div>
+                          </div>
+                          <div className="number-input-wrapper">
+                            <button className="qty-btn" onClick={() => { api.adjustStock(item.id, -1); onToast(`${item.name} actualizado`); }}>−</button>
+                            <div className="qty-display">{d.qty}</div>
+                            <button className="qty-btn" onClick={() => { api.adjustStock(item.id, 1); onToast(`${item.name} actualizado`); }}>+</button>
+                          </div>
+                          <span className={`stock-badge ${stockClass}`}>{d.qty === 0 ? "SIN STOCK" : d.qty <= d.minStock ? "STOCK BAJO" : "EN STOCK"}</span>
+                          <button className="tk-btn btn-ghost btn-sm" onClick={() => setEditItem({ item, d })} title="Editar mínimo"><Icon name="settings" size={13} /></button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Edit min stock modal */}
+          {editItem && (
+            <Modal title={`AJUSTAR — ${editItem.item.name}`} onClose={() => setEditItem(null)}>
+              <EditStockModal item={editItem.item} data={editItem.d} api={api} onToast={onToast} onClose={() => setEditItem(null)} />
+            </Modal>
+          )}
+        </div>
+      );
+    };
+
+    const EditStockModal = ({ item, data, api, onToast, onClose }) => {
+      const [qty, setQty] = useState(data.qty);
+      const [min, setMin] = useState(data.minStock);
+      const save = () => { api.updateInventoryItem(item.id, { qty: +qty, minStock: +min }); onToast("Inventario actualizado"); onClose(); };
+      return (
+        <div>
+          <div className="form-row form-row-2">
+            <div><label className="tk-label">Cantidad actual</label><input className="tk-input" type="number" min="0" value={qty} onChange={e => setQty(e.target.value)} /></div>
+            <div><label className="tk-label">Stock mínimo</label><input className="tk-input" type="number" min="0" value={min} onChange={e => setMin(e.target.value)} /></div>
+          </div>
+          <div className="form-actions">
+            <button className="tk-btn btn-ghost" onClick={onClose}>Cancelar</button>
+            <button className="tk-btn btn-red" onClick={save}>Guardar</button>
+          </div>
+        </div>
+      );
+    };
+
+    // ─── LOGIN — FLUJO 3 PASOS ────────────────────────────────────────────────────
+    // Lookup table: id numérico → {user, role, periodo}
+    const ID_LOOKUP = {
+      "0001": { user: "admin", role: "admin", nombre: "Maestro Ramírez", periodo: "Abr-May 2026" },
+    };
+
+    const ROLE_LABELS = { admin: "Administrador", alumno: "Alumno", maestro: "Instructor", representante: "Representante" };
+    const ROLE_COLORS = { admin: "#c01212", alumno: "#1d4ed8", maestro: "#b8800e", representante: "#166534" };
+
+    const LoginPage = ({ onLogin, db }) => {
+      const [step, setStep] = useState(1);   // 1=ID, 2=confirm, 3=pass
+      const [idVal, setIdVal] = useState("");
+      const [found, setFound] = useState(null);
+      const [pass, setPass] = useState("");
+      const [newPass, setNewPass] = useState("");
+      const [newPass2, setNewPass2] = useState("");
+      const [showPass, setShowPass] = useState(false);
+      const [err, setErr] = useState("");
+      const [shake, setShake] = useState(false);
+      const idRef = useRef(null);
+      const passRef = useRef(null);
+
+      // demos rápidos
+      const demos = [
+        { label: "Admin", id: "0001" },
+      ];
+
+      const triggerShake = () => {
+        setShake(true);
+        setTimeout(() => setShake(false), 500);
+      };
+
+      const handleIdSubmit = async (e) => {
+        e.preventDefault();
+        const trimmed = idVal.trim();
+        // Primero busca en el lookup estático (admin)
+        let match = ID_LOOKUP[trimmed];
+        // Si no está ahí, busca en los alumnos reales cargados en db
+        if (!match && db && db.students) {
+          let students = db.students;
+          // Si la lista está vacía (backend dormido al arrancar), reintentar la carga
+          if (students.length === 0) {
+            try {
+              setErr("Verificando ID...");
+              const res = await fetch(API_URL + "/api/alumnos/publico");
+              const data = await res.json();
+              if (Array.isArray(data) && data.length > 0) {
+                students = data;
+                setDb(prev => ({
+                  ...prev, students: data.map(a => ({
+                    id: a.num_control, name: a.nombre, age: 0, belt: "Blanco",
+                    parent: "", phone: "", email: "", joined: "", active: true,
+                    user: a.num_control, pass: "REAL", firstLogin: false,
+                    personal: { address: "", blood: "", emergency: "", emergencyPhone: "", medNotes: "" }
+                  }))
+                }));
+              }
+            } catch (_) { }
+            setErr("");
+          }
+          const alumno = students.find(s => s.num_control === trimmed || s.id === trimmed || s.user === trimmed);
+          if (alumno) {
+            match = { user: alumno.num_control || alumno.user || alumno.id, role: "alumno", nombre: alumno.nombre || alumno.name, periodo: "" };
+          }
+        }
+        if (!match) {
+          setErr("");
+          triggerShake();
+          setTimeout(() => setErr("ID no encontrado. Verifica e intenta de nuevo."), 100);
+          return;
+        }
+        setFound(match);
+        setErr("");
+        setStep(2);
+        setTimeout(() => passRef.current?.focus(), 350);
+      };
+
+      const handlePassSubmit = async (e) => {
+        e.preventDefault();
+        // Si el usuario escribió "CAMBIAR" como contraseña, ir al paso 3
+        if (pass.toUpperCase() === "CAMBIAR") {
+          setStep(3);
+          return;
+        }
+        const result = await onLogin(found.user, pass);
+        if (!result) {
+          triggerShake();
+          setErr("Contraseña incorrecta.");
+        }
+      };
+
+      const resetFlow = () => {
+        setStep(1); setIdVal(""); setFound(null); setPass(""); setErr("");
+        setTimeout(() => idRef.current?.focus(), 100);
+      };
+
+      const roleColor = found ? (ROLE_COLORS[found.role] || "#555577") : "#c01212";
+      const roleLabel = found ? (ROLE_LABELS[found.role] || found.role) : "";
+
+      return (
+        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, position: "relative", overflow: "hidden", background: "#0b0b12" }}>
+          {/* Fondo decorativo */}
+          <div style={{ position: "absolute", top: "-15%", right: "-8%", width: 560, height: 560, borderRadius: "50%", background: "radial-gradient(circle,rgba(192,18,18,.07) 0%,transparent 68%)", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", bottom: "-18%", left: "-8%", width: 480, height: 480, borderRadius: "50%", background: "radial-gradient(circle,rgba(184,128,14,.05) 0%,transparent 68%)", pointerEvents: "none" }} />
+          {/* Líneas decorativas diagonales */}
+          <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", opacity: .04 }} xmlns="http://www.w3.org/2000/svg">
+            {[...Array(8)].map((_, i) => <line key={i} x1={i * 160 - 200} y1="0" x2={i * 160 + 400} y2="100%" stroke="#c01212" strokeWidth="1" />)}
+          </svg>
+
+          <div style={{ width: "100%", maxWidth: 400, position: "relative", zIndex: 1 }}>
+            {/* Logo */}
+            <div style={{ textAlign: "center", marginBottom: 36 }}>
+              <div style={{ width: 70, height: 70, borderRadius: "50%", background: "rgba(192,18,18,.12)", border: "2px solid rgba(192,18,18,.35)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px", fontSize: 30, boxShadow: "0 0 32px rgba(192,18,18,.15)" }}>🥋</div>
+              <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 30, letterSpacing: 3, color: "#f0f0fa", lineHeight: 1 }}>DOJANG TAEKWONDO</div>
+              <div style={{ fontSize: 11, color: "#444466", letterSpacing: 2.5, textTransform: "uppercase", marginTop: 5 }}>Portal Académico</div>
+            </div>
+
+            {/* Indicador de pasos */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0, marginBottom: 28 }}>
+              {[1, 2, 3].map((s, i) => {
+                const done = step > s;
+                const active = step === s;
+                const color = done || active ? "#c01212" : "#222234";
+                const textColor = done || active ? "#fff" : "#333355";
+                return (
+                  <React.Fragment key={s}>
+                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: textColor, border: `2px solid ${done || active ? "#c01212" : "#1e1e2e"}`, transition: "all .3s", boxShadow: active ? "0 0 12px rgba(192,18,18,.5)" : "none" }}>
+                      {done ? "✓" : s}
+                    </div>
+                    {i < 2 && <div style={{ width: 48, height: 2, background: done ? "#c01212" : "#1a1a2a", transition: "background .3s" }} />}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+
+            {/* PASO 1 — Ingresar ID */}
+            {step === 1 && (
+              <div style={{ animation: "fadeSlideIn .3s ease" }}>
+                <div style={{ marginBottom: 6, textAlign: "center" }}>
+                  <div style={{ fontSize: 13, color: "#888899", marginBottom: 2 }}>Paso 1 de 3</div>
+                  <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 20, letterSpacing: 1.5, color: "#f0f0fa" }}>Ingresa tu ID</div>
+                </div>
+                <form onSubmit={handleIdSubmit} className="card" style={{ padding: 26, marginTop: 16, animation: shake ? "shakeAnim .4s ease" : "none" }}>
+                  <div className="form-row">
+                    <div>
+                      <label className="tk-label">Número de identificación</label>
+                      <input
+                        ref={idRef}
+                        autoFocus
+                        className="tk-input"
+                        value={idVal}
+                        onChange={e => { setIdVal(e.target.value); setErr(""); }}
+                        placeholder="Ej. AT-2026YL001"
+                        style={{ fontSize: 22, letterSpacing: 4, textAlign: "center", fontFamily: "'Bebas Neue',sans-serif", padding: "12px" }}
+                        maxLength={20}
+                      />
+                      {err && <div style={{ color: "#f87171", fontSize: 12, marginTop: 8, display: "flex", alignItems: "center", gap: 6 }}><span>⚠</span>{err}</div>}
+                      <div style={{ fontSize: 11, color: "#333355", marginTop: 8, textAlign: "center" }}>Solo tú conoces tu ID. No lo compartas.</div>
+                    </div>
+                  </div>
+                  <button className="tk-btn btn-red" style={{ width: "100%", justifyContent: "center", padding: "11px 0", fontSize: 14, marginTop: 4 }} type="submit" disabled={!idVal.trim()}>
+                    Continuar →
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {/* PASO 2 — Confirmar identidad */}
+            {step === 2 && found && (
+              <div style={{ animation: "fadeSlideIn .3s ease" }}>
+                <div style={{ marginBottom: 6, textAlign: "center" }}>
+                  <div style={{ fontSize: 13, color: "#888899", marginBottom: 2 }}>Paso 2 de 3</div>
+                  <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 20, letterSpacing: 1.5, color: "#f0f0fa" }}>Confirma tu identidad</div>
+                </div>
+                <div className="card" style={{ padding: 24, marginTop: 16 }}>
+                  {/* Tarjeta de identidad */}
+                  <div style={{ background: "linear-gradient(135deg,rgba(192,18,18,.12),rgba(11,11,18,.8))", border: `1px solid ${roleColor}44`, borderRadius: 10, padding: "18px 20px", marginBottom: 20, position: "relative", overflow: "hidden" }}>
+                    <div style={{ position: "absolute", top: -20, right: -20, width: 80, height: 80, borderRadius: "50%", background: `${roleColor}18`, pointerEvents: "none" }} />
+                    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                      <div style={{ width: 46, height: 46, borderRadius: "50%", background: `${roleColor}20`, border: `2px solid ${roleColor}60`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>
+                        {found.role === "admin" ? "🛡️" : found.role === "alumno" ? "🥋" : found.role === "maestro" ? "👨‍🏫" : "👤"}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ color: "#f0f0fa", fontWeight: 600, fontSize: 16, marginBottom: 2 }}>{found.nombre}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: roleColor, background: `${roleColor}18`, border: `1px solid ${roleColor}40`, borderRadius: 20, padding: "2px 9px", letterSpacing: .5, textTransform: "uppercase" }}>{roleLabel}</span>
+                          <span style={{ fontSize: 11, color: "#555577" }}>Periodo: <span style={{ color: "#9090b0" }}>{found.periodo}</span></span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Paso a contraseña */}
+                  <form onSubmit={handlePassSubmit}>
+                    <div>
+                      <label className="tk-label">Contraseña</label>
+                      <div style={{ position: "relative" }}>
+                        <input
+                          ref={passRef}
+                          className="tk-input"
+                          type={showPass ? "text" : "password"}
+                          value={pass}
+                          onChange={e => { setPass(e.target.value); setErr(""); }}
+                          placeholder="••••••"
+                          style={{ paddingRight: 72, animation: shake ? "shakeAnim .4s ease" : "none" }}
+                        />
+                        <button type="button" onClick={() => setShowPass(p => !p)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#555577", cursor: "pointer", fontSize: 11, fontFamily: "'Exo 2',sans-serif", padding: "4px" }}>
+                          {showPass ? "Ocultar" : "Mostrar"}
+                        </button>
+                      </div>
+                      {err && <div style={{ color: "#f87171", fontSize: 12, marginTop: 8, display: "flex", alignItems: "center", gap: 6 }}><span>⚠</span>{err}</div>}
+                    </div>
+                    <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+                      <button type="button" className="tk-btn btn-ghost" style={{ flex: 1, justifyContent: "center" }} onClick={resetFlow}>← Atrás</button>
+                      <button type="submit" className="tk-btn btn-red" style={{ flex: 2, justifyContent: "center", padding: "10px 0" }} disabled={!pass}>Entrar</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {step === 3 && (
+              <div className="card" style={{ padding: 26, marginTop: 16 }}>
+                <div style={{ marginBottom: 16, color: "#9090b0", fontSize: 13, textAlign: "center" }}>
+                  Es tu primer acceso. Elige una contraseña para tu cuenta.
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <label className="tk-label">Nueva contraseña</label>
+                  <input className="tk-input" type="password" value={newPass}
+                    onChange={e => setNewPass(e.target.value)} placeholder="Mínimo 4 caracteres" />
+                </div>
+                <div style={{ marginBottom: 16 }}>
+                  <label className="tk-label">Confirmar contraseña</label>
+                  <input className="tk-input" type="password" value={newPass2}
+                    onChange={e => setNewPass2(e.target.value)} placeholder="Repite la contraseña" />
+                </div>
+                {newPass && newPass2 && newPass !== newPass2 && <div style={{ color: "#f87171", fontSize: 12, marginBottom: 8 }}>⚠ Las contraseñas no coinciden</div>}
+                <button className="tk-btn btn-red" style={{ width: "100%", justifyContent: "center", padding: "11px 0", fontSize: 14 }}
+                  disabled={newPass.length < 4 || newPass !== newPass2}
+                  onClick={async () => {
+                    const result = await onLogin(found.user, newPass, true);
+                    if (!result) { setErr("Error al crear contraseña."); setStep(2); }
+                  }}>
+                  Crear contraseña y entrar →
+                </button>
+              </div>
+            )}
+
+            {/* Demo hints */}
+            <div style={{ marginTop: 20, padding: "13px 16px", background: "rgba(255,255,255,.02)", borderRadius: 8, border: "1px solid #161626" }}>
+              <div style={{ fontSize: 10, color: "#333355", letterSpacing: 1, textTransform: "uppercase", marginBottom: 9 }}>IDs de demo</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {demos.map(d => (
+                  <button key={d.id} className="tk-btn btn-ghost btn-sm" onClick={() => { setIdVal(d.id); setErr(""); setStep(1); }} style={{ gap: 6 }}>
+                    <span style={{ color: "#555577", fontFamily: "'Bebas Neue',sans-serif", letterSpacing: .5 }}>{d.id}</span>
+                    <span>{d.label}</span>
+                  </button>
+                ))}
+              </div>
+              <div style={{ fontSize: 10, color: "#2a2a40", marginTop: 8 }}>Contraseña: <span style={{ color: "#333355" }}>admin123</span> (admin) · <span style={{ color: "#333355" }}>1234</span> (alumnos)</div>
+            </div>
+          </div>
+
+          <style>{`
+        @keyframes fadeSlideIn {
+          from { opacity:0; transform:translateY(12px); }
+          to   { opacity:1; transform:translateY(0); }
+        }
+        @keyframes shakeAnim {
+          0%,100% { transform:translateX(0); }
+          20%     { transform:translateX(-8px); }
+          40%     { transform:translateX(8px); }
+          60%     { transform:translateX(-6px); }
+          80%     { transform:translateX(6px); }
+        }
+      `}</style>
+        </div>
+      );
+    };
+
+    // ─── STUDENT FORM ─────────────────────────────────────────────────────────────
+    const StudentForm = ({ initial, onSave, onClose, api }) => {
+      const empty = { name: "", age: "", belt: "Blanco", parent: "", phone: "", email: "", joined: todayStr(), active: true, user: "", pass: "CAMBIAR", personal: { address: "", blood: "", emergency: "", emergencyPhone: "", medNotes: "" } };
+      const [f, setF] = useState(initial || empty);
+      const set = (k, v) => setF(p => ({ ...p, [k]: v }));
+      const setP = (k, v) => setF(p => ({ ...p, personal: { ...p.personal, [k]: v } }));
+      const handleName = (v) => {
+        const existingIds = api ? api.getStudents().map(s => s.id) : [];
+        const newId = v.trim().length >= 2 ? genStudentId(v, existingIds) : "";
+        setF(p => ({ ...p, name: v, user: initial ? p.user : newId }));
+      };
+      const submit = (e) => { e.preventDefault(); onSave({ ...f, id: f.user }); onClose(); };
+      return (
+        <form onSubmit={submit}>
+          <div style={{ fontSize: 11, color: "#c01212", textTransform: "uppercase", letterSpacing: .8, marginBottom: 12 }}>Datos del alumno</div>
+          <div className="form-row form-row-2">
+            <div><label className="tk-label">Nombre completo</label><input className="tk-input" required value={f.name} onChange={e => handleName(e.target.value)} /></div>
+            <div><label className="tk-label">Edad</label><input className="tk-input" type="number" required min="3" max="99" value={f.age} onChange={e => set("age", +e.target.value)} /></div>
+          </div>
+          <div className="form-row form-row-2">
+            <div><label className="tk-label">Cinturón</label><select className="tk-input" value={f.belt} onChange={e => set("belt", e.target.value)}>{BELT_LIST.map(b => <option key={b}>{b}</option>)}</select></div>
+            <div><label className="tk-label">Fecha de ingreso</label><input className="tk-input" type="date" value={f.joined} onChange={e => set("joined", e.target.value)} /></div>
+          </div>
+          <div className="form-row form-row-2">
+            <div><label className="tk-label">Padre / Tutor</label><input className="tk-input" value={f.parent} onChange={e => set("parent", e.target.value)} /></div>
+            <div><label className="tk-label">Teléfono</label><input className="tk-input" value={f.phone} onChange={e => set("phone", e.target.value)} /></div>
+          </div>
+          <div className="form-row"><div><label className="tk-label">Correo electrónico</label><input className="tk-input" type="email" value={f.email} onChange={e => set("email", e.target.value)} /></div></div>
+          <div style={{ fontSize: 11, color: "#555577", textTransform: "uppercase", letterSpacing: .8, margin: "14px 0 10px" }}>Datos personales adicionales</div>
+          <div className="form-row form-row-2">
+            <div><label className="tk-label">Dirección</label><input className="tk-input" value={f.personal?.address || ""} onChange={e => setP("address", e.target.value)} /></div>
+            <div><label className="tk-label">Tipo de sangre</label><select className="tk-input" value={f.personal?.blood || ""} onChange={e => setP("blood", e.target.value)}><option value="">— Seleccionar —</option>{["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(t => <option key={t}>{t}</option>)}</select></div>
+          </div>
+          <div className="form-row form-row-2">
+            <div><label className="tk-label">Contacto de emergencia</label><input className="tk-input" value={f.personal?.emergency || ""} onChange={e => setP("emergency", e.target.value)} /></div>
+            <div><label className="tk-label">Teléfono de emergencia</label><input className="tk-input" value={f.personal?.emergencyPhone || ""} onChange={e => setP("emergencyPhone", e.target.value)} /></div>
+          </div>
+          <div className="form-row"><div><label className="tk-label">Notas médicas / condiciones</label><textarea className="tk-input" rows={2} value={f.personal?.medNotes || ""} onChange={e => setP("medNotes", e.target.value)} placeholder="Ej. Asma leve, alergia a..., ninguna" /></div></div>
+          <div style={{ borderTop: "1px solid #1e1e2e", paddingTop: 14, marginTop: 8 }}>
+            <div style={{ fontSize: 11, color: "#555577", letterSpacing: .8, textTransform: "uppercase", marginBottom: 10 }}>Acceso al portal</div>
+            <div className="form-row form-row-2">
+              <div><label className="tk-label">ID / Usuario</label><input className="tk-input" readOnly style={{ opacity: .7, cursor: "not-allowed" }} value={f.user} placeholder="Se genera al escribir el nombre" /></div>
+              <div><label className="tk-label">Contraseña</label><input className="tk-input" value={f.pass} onChange={e => set("pass", e.target.value)} /></div>
+            </div>
+          </div>
+          <div className="form-actions">
+            <button type="button" className="tk-btn btn-ghost" onClick={onClose}>Cancelar</button>
+            <button type="submit" className="tk-btn btn-red">Guardar alumno</button>
+          </div>
+        </form>
+      );
+    };
+
+    // ─── ADMIN ALUMNOS ────────────────────────────────────────────────────────────
+    const AdminStudents = ({ api }) => {
+      const [modal, setModal] = useState(null); const [search, setSearch] = useState("");
+      const students = api.getStudents();
+      const filtered = students.filter(s => s.name.toLowerCase().includes(search.toLowerCase()) || s.parent.toLowerCase().includes(search.toLowerCase()));
+      return (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <div className="section-title">ALUMNOS</div>
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <input className="tk-input" style={{ width: 220 }} placeholder="Buscar alumno..." value={search} onChange={e => setSearch(e.target.value)} />
+              <button className="tk-btn btn-red" onClick={() => setModal("add")}><Icon name="plus" size={14} />Nuevo alumno</button>
+            </div>
+          </div>
+          <div className="card">
+            <table>
+              <thead><tr><th>Alumno</th><th>Edad</th><th>Cinturón</th><th>Tutor</th><th>Teléfono</th><th>Ingreso</th><th>Próx. Examen</th><th></th></tr></thead>
+              <tbody>
+                {filtered.length === 0 && <tr><td colSpan={8}><div className="empty-state"><div className="empty-icon">👥</div><div>Sin alumnos</div></div></td></tr>}
+                {filtered.map(s => {
+                  const nd = api.getNextExamDate(s.id); const dys = daysUntil(nd);
+                  const col = dys < 0 ? "#f87171" : dys <= 7 ? "#f87171" : dys <= 21 ? "#d4960f" : "#4ade80";
+                  return (
+                    <tr key={s.id}>
+                      <td><span style={{ color: "#dde0ee", fontWeight: 500 }}>{s.name}</span></td>
+                      <td>{s.age} años</td><td><BeltBadge belt={s.belt} /></td><td>{s.parent}</td>
+                      <td style={{ fontFamily: "monospace" }}>{s.phone}</td><td>{fmtDate(s.joined)}</td>
+                      <td><span style={{ color: col, fontSize: 12, fontWeight: 500 }}>{fmtDate(nd)}</span><span style={{ color: "#555577", fontSize: 11, display: "block" }}>{dys >= 0 ? `en ${dys}d` : `hace ${Math.abs(dys)}d`}</span></td>
+                      <td>
+                        <div style={{ display: "flex", gap: 5 }}>
+                          <button className="tk-btn btn-blue btn-sm" title="Exámenes" onClick={() => setModal({ exams: s })}><Icon name="diploma" size={13} /></button>
+                          <button className="tk-btn btn-ghost btn-sm" onClick={() => setModal({ edit: s })}><Icon name="edit" size={13} /></button>
+                          <button className="tk-btn btn-danger btn-sm" onClick={() => setModal({ del: s.id })}><Icon name="trash" size={13} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {modal === "add" && <Modal title="NUEVO ALUMNO" onClose={() => setModal(null)} lg><StudentForm api={api} onSave={d => api.addStudent(d)} onClose={() => setModal(null)} /></Modal>}
+          {modal?.edit && <Modal title="EDITAR ALUMNO" onClose={() => setModal(null)} lg><StudentForm initial={modal.edit} onSave={d => api.updateStudent(modal.edit.id, d)} onClose={() => setModal(null)} /></Modal>}
+          {modal?.del && <ConfirmModal message="¿Eliminar este alumno? Esta acción no se puede deshacer." onConfirm={() => api.deleteStudent(modal.del)} onClose={() => setModal(null)} />}
+          {modal?.exams && <StudentExamsModal student={modal.exams} api={api} onClose={() => setModal(null)} />}
+        </div>
+      );
+    };
+
+    // ─── ADMIN PAGOS ──────────────────────────────────────────────────────────────
+    const PaymentForm = ({ initial, students, onSave, onClose }) => {
+      const empty = { sid: "", concept: "", total: "", installments: 1, instAmt: "", start: todayStr(), nextDue: "", status: "en_proceso", notes: "" };
+      const [f, setF] = useState(initial ? { ...initial } : empty);
+      const set = (k, v) => setF(p => ({ ...p, [k]: v }));
+      const instPaid = initial ? initial.instPaid : 0; const paid = initial ? initial.paid : 0;
+      const submit = (e) => { e.preventDefault(); onSave({ ...f, total: +f.total, installments: +f.installments, instAmt: +f.instAmt, instPaid, paid }); onClose(); };
+      return (
+        <form onSubmit={submit}>
+          <div className="form-row">
+            <div><label className="tk-label">Alumno</label><select className="tk-input" required value={f.sid} onChange={e => set("sid", e.target.value)}><option value="">— seleccionar —</option>{students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
+            <div><label className="tk-label">Concepto</label><input className="tk-input" required value={f.concept} onChange={e => set("concept", e.target.value)} /></div>
+          </div>
+          <div className="form-row form-row-2">
+            <div><label className="tk-label">Monto total ($)</label><input className="tk-input" type="number" required min="1" value={f.total} onChange={e => set("total", e.target.value)} /></div>
+            <div><label className="tk-label">Número de pagos</label><input className="tk-input" type="number" required min="1" max="24" value={f.installments} onChange={e => set("installments", e.target.value)} /></div>
+          </div>
+          <div className="form-row form-row-2">
+            <div><label className="tk-label">Monto por pago ($)</label><input className="tk-input" type="number" min="1" value={f.instAmt} onChange={e => set("instAmt", e.target.value)} /></div>
+            <div><label className="tk-label">Estado</label><select className="tk-input" value={f.status} onChange={e => set("status", e.target.value)}><option value="en_proceso">En proceso</option><option value="liquidado">Liquidado</option><option value="vencido">Vencido</option></select></div>
+          </div>
+          <div className="form-row form-row-2">
+            <div><label className="tk-label">Fecha de inicio</label><input className="tk-input" type="date" value={f.start} onChange={e => set("start", e.target.value)} /></div>
+            <div><label className="tk-label">Próximo vencimiento</label><input className="tk-input" type="date" value={f.nextDue || ""} onChange={e => set("nextDue", e.target.value)} /></div>
+          </div>
+          <div className="form-row"><div><label className="tk-label">Notas</label><textarea className="tk-input" rows={2} value={f.notes} onChange={e => set("notes", e.target.value)} /></div></div>
+          <div className="form-actions"><button type="button" className="tk-btn btn-ghost" onClick={onClose}>Cancelar</button><button type="submit" className="tk-btn btn-red">Guardar plan de pago</button></div>
+        </form>
+      );
+    };
+    const AdminPayments = ({ api }) => {
+      const [modal, setModal] = useState(null);
+      const students = api.getStudents(); const payments = api.getPayments();
+      const getName = (sid) => students.find(s => s.id === sid)?.name || "—";
+      return (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <div className="section-title">LIQUIDACIONES Y PAGOS</div>
+            <button className="tk-btn btn-red" onClick={() => setModal("add")}><Icon name="plus" size={14} />Nuevo plan</button>
+          </div>
+          <div className="card">
+            <table>
+              <thead><tr><th>Alumno</th><th>Concepto</th><th>Avance</th><th>Pagos</th><th>Próx. vencimiento</th><th>Estado</th><th></th></tr></thead>
+              <tbody>
+                {payments.length === 0 && <tr><td colSpan={7}><div className="empty-state"><div className="empty-icon">💳</div><div>Sin planes de pago</div></div></td></tr>}
+                {payments.map(p => (
+                  <tr key={p.id}>
+                    <td style={{ color: "#dde0ee", fontWeight: 500 }}>{getName(p.sid)}</td>
+                    <td style={{ maxWidth: 180 }}>{p.concept}</td>
+                    <td style={{ minWidth: 160 }}><div style={{ marginBottom: 5, display: "flex", justifyContent: "space-between", fontSize: 12 }}><span>{mxn(p.paid)}</span><span style={{ color: "#555577" }}>/ {mxn(p.total)}</span></div><ProgressBar value={p.paid} max={p.total} /></td>
+                    <td><span style={{ color: "#dde0ee" }}>{p.instPaid}</span><span style={{ color: "#555577" }}>/{p.installments}</span></td>
+                    <td>{fmtDate(p.nextDue)}</td><td><StatusTag status={p.status} /></td>
+                    <td><div style={{ display: "flex", gap: 6 }}>{p.status === "en_proceso" && <button className="tk-btn btn-gold btn-sm" title="Registrar pago" onClick={() => api.registerInstallment(p.id)}><Icon name="check" size={13} /></button>}<button className="tk-btn btn-ghost btn-sm" onClick={() => setModal({ edit: p })}><Icon name="edit" size={13} /></button><button className="tk-btn btn-danger btn-sm" onClick={() => setModal({ del: p.id })}><Icon name="trash" size={13} /></button></div></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {modal === "add" && <Modal title="NUEVO PLAN DE PAGO" onClose={() => setModal(null)} lg><PaymentForm students={students} onSave={d => api.addPayment(d)} onClose={() => setModal(null)} /></Modal>}
+          {modal?.edit && <Modal title="EDITAR PLAN DE PAGO" onClose={() => setModal(null)} lg><PaymentForm initial={modal.edit} students={students} onSave={d => api.updatePayment(modal.edit.id, d)} onClose={() => setModal(null)} /></Modal>}
+          {modal?.del && <ConfirmModal message="¿Eliminar este plan de pago?" onConfirm={() => api.deletePayment(modal.del)} onClose={() => setModal(null)} />}
+        </div>
+      );
+    };
+
+    // ─── ADMIN EVENTOS ────────────────────────────────────────────────────────────
+    const EventForm = ({ initial, onSave, onClose }) => {
+      const empty = { title: "", type: "ascenso", date: "", desc: "", place: "" };
+      const [f, setF] = useState(initial || empty);
+      const set = (k, v) => setF(p => ({ ...p, [k]: v }));
+      const submit = (e) => { e.preventDefault(); onSave(f); onClose(); };
+      return (
+        <form onSubmit={submit}>
+          <div className="form-row"><div><label className="tk-label">Título del evento</label><input className="tk-input" required value={f.title} onChange={e => set("title", e.target.value)} /></div></div>
+          <div className="form-row form-row-2">
+            <div><label className="tk-label">Tipo</label><select className="tk-input" value={f.type} onChange={e => set("type", e.target.value)}><option value="ascenso">Ascenso de Grado</option><option value="torneo">Torneo</option><option value="especial">Evento Especial</option></select></div>
+            <div><label className="tk-label">Fecha</label><input className="tk-input" type="date" required value={f.date} onChange={e => set("date", e.target.value)} /></div>
+          </div>
+          <div className="form-row"><div><label className="tk-label">Lugar</label><input className="tk-input" value={f.place} onChange={e => set("place", e.target.value)} /></div><div><label className="tk-label">Descripción</label><textarea className="tk-input" rows={3} value={f.desc} onChange={e => set("desc", e.target.value)} /></div></div>
+          <div className="form-actions"><button type="button" className="tk-btn btn-ghost" onClick={onClose}>Cancelar</button><button type="submit" className="tk-btn btn-red">Guardar evento</button></div>
+        </form>
+      );
+    };
+    const AdminEvents = ({ api }) => {
+      const [modal, setModal] = useState(null); const events = api.getEvents();
+      return (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <div className="section-title">EVENTOS Y COMPETENCIAS</div>
+            <button className="tk-btn btn-red" onClick={() => setModal("add")}><Icon name="plus" size={14} />Nuevo evento</button>
+          </div>
+          <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))" }}>
+            {events.length === 0 && <div className="card empty-state" style={{ padding: 40, gridColumn: "1/-1" }}><div className="empty-icon">📅</div><div>Sin eventos</div></div>}
+            {events.map(ev => {
+              const et = EVENT_TYPE[ev.type] || EVENT_TYPE.especial;
+              return (
+                <div key={ev.id} className="card" style={{ padding: 18, borderLeft: `3px solid ${et.color}` }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                    <EventTypeBadge type={ev.type} />
+                    <div style={{ display: "flex", gap: 6 }}><button className="tk-btn btn-ghost btn-sm" onClick={() => setModal({ edit: ev })}><Icon name="edit" size={13} /></button><button className="tk-btn btn-danger btn-sm" onClick={() => setModal({ del: ev.id })}><Icon name="trash" size={13} /></button></div>
+                  </div>
+                  <div style={{ fontWeight: 600, color: "#dde0ee", marginBottom: 6, fontSize: 14, lineHeight: 1.4 }}>{ev.title}</div>
+                  <div style={{ color: "#9090b0", fontSize: 12, marginBottom: 4 }}><span style={{ color: et.color, marginRight: 6 }}>●</span>{fmtDate(ev.date)}</div>
+                  {ev.place && <div style={{ color: "#666688", fontSize: 11, marginBottom: 8 }}>📍 {ev.place}</div>}
+                  {ev.desc && <div style={{ color: "#7070a0", fontSize: 12, lineHeight: 1.5, borderTop: "1px solid #1e1e2e", paddingTop: 8, marginTop: 8 }}>{ev.desc}</div>}
+                </div>
+              );
+            })}
+          </div>
+          {modal === "add" && <Modal title="NUEVO EVENTO" onClose={() => setModal(null)}><EventForm onSave={d => api.addEvent(d)} onClose={() => setModal(null)} /></Modal>}
+          {modal?.edit && <Modal title="EDITAR EVENTO" onClose={() => setModal(null)}><EventForm initial={modal.edit} onSave={d => api.updateEvent(modal.edit.id, d)} onClose={() => setModal(null)} /></Modal>}
+          {modal?.del && <ConfirmModal message="¿Eliminar este evento?" onConfirm={() => api.deleteEvent(modal.del)} onClose={() => setModal(null)} />}
+        </div>
+      );
+    };
+
+    // ─── ADMIN HOME ───────────────────────────────────────────────────────────────
+    const AdminHome = ({ api, setTab }) => {
+      const students = api.getStudents(); const payments = api.getPayments(); const events = api.getEvents(); const ts = todayStr();
+      const examSoon = students.filter(s => { const d = daysUntil(api.getNextExamDate(s.id)); return d >= 0 && d <= 14; });
+      const inv = api.getInventory();
+      const outStock = INV_CATEGORIES.reduce((a, c) => a + c.items.filter(it => { const d = inv[it.id]; return !d || d.qty === 0; }).length, 0);
+      const stats = [
+        { label: "Alumnos activos", value: students.filter(s => s.active).length, color: "#c01212" },
+        { label: "Pagos en proceso", value: payments.filter(p => p.status === "en_proceso").length, color: "#d4960f" },
+        { label: "Pagos vencidos", value: payments.filter(p => p.status === "vencido").length, color: "#f87171" },
+        { label: "Próx. eventos", value: events.filter(e => e.date >= ts).length, color: "#60a5fa" },
+        { label: "Inv. sin stock", value: outStock, color: "#c084fc" },
+      ];
+      const getName = (sid) => students.find(s => s.id === sid)?.name || "—";
+      const pending = payments.filter(p => p.status === "en_proceso").slice(0, 3);
+      const coming = events.filter(e => e.date >= ts).slice(0, 3);
+      return (
+        <div>
+          <div className="section-title" style={{ marginBottom: 20 }}>RESUMEN GENERAL</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 12, marginBottom: 20 }}>
+            {stats.map(s => (
+              <div key={s.label} className="stat-card" style={{ cursor: s.label.includes("Inv") ? "pointer" : "default" }} onClick={() => s.label.includes("Inv") && setTab("inventory")}>
+                <div className="stat-value" style={{ color: s.color }}>{s.value}</div>
+                <div className="stat-label">{s.label}</div>
+              </div>
+            ))}
+          </div>
+          {examSoon.length > 0 && (
+            <div style={{ background: "rgba(212,150,15,.08)", border: "1px solid rgba(212,150,15,.3)", borderRadius: 10, padding: "14px 18px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 12 }}>
+              <div style={{ fontSize: 22 }}>🔔</div>
+              <div>
+                <div style={{ color: "#d4960f", fontWeight: 700, fontSize: 13, marginBottom: 6 }}>{examSoon.length} alumno{examSoon.length !== 1 ? "s" : ""} con examen en los próximos 14 días</div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{examSoon.map(s => { const d = daysUntil(api.getNextExamDate(s.id)); return <span key={s.id} style={{ background: "rgba(212,150,15,.15)", padding: "3px 10px", borderRadius: 20, fontSize: 12, color: "#fef08a" }}>{s.name} — en {d}d</span>; })}</div>
+              </div>
+            </div>
+          )}
+          {outStock > 0 && (
+            <div style={{ background: "rgba(192,0,192,.06)", border: "1px solid rgba(192,0,192,.25)", borderRadius: 10, padding: "12px 18px", marginBottom: 20, display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }} onClick={() => setTab("inventory")}>
+              <div style={{ fontSize: 20 }}>📦</div>
+              <div style={{ color: "#c084fc", fontWeight: 600, fontSize: 13 }}>{outStock} artículo{outStock !== 1 ? "s" : ""} sin stock en inventario — <span style={{ textDecoration: "underline" }}>ver inventario</span></div>
+            </div>
+          )}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div className="card" style={{ padding: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                <div style={{ fontWeight: 600, color: "#dde0ee", fontSize: 13, letterSpacing: .5, textTransform: "uppercase" }}>Pagos pendientes</div>
+                <button className="tk-btn btn-ghost btn-sm" onClick={() => setTab("payments")}>Ver todos</button>
+              </div>
+              {pending.length === 0 ? <div style={{ color: "#4a4a6a", fontSize: 13, padding: "10px 0" }}>Sin pagos pendientes 🎉</div> : pending.map(p => (
+                <div key={p.id} style={{ padding: "10px 0", borderBottom: "1px solid #1e1e2e", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div><div style={{ color: "#dde0ee", fontSize: 13, fontWeight: 500 }}>{getName(p.sid)}</div><div style={{ color: "#666688", fontSize: 11, marginTop: 2 }}>{p.concept}</div></div>
+                  <div style={{ textAlign: "right" }}><div style={{ color: "#d4960f", fontSize: 13, fontWeight: 600 }}>{mxn(p.total - p.paid)}</div><div style={{ color: "#555577", fontSize: 11 }}>restante</div></div>
+                </div>
+              ))}
+            </div>
+            <div className="card" style={{ padding: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                <div style={{ fontWeight: 600, color: "#dde0ee", fontSize: 13, letterSpacing: .5, textTransform: "uppercase" }}>Próximos eventos</div>
+                <button className="tk-btn btn-ghost btn-sm" onClick={() => setTab("events")}>Ver todos</button>
+              </div>
+              {coming.length === 0 ? <div style={{ color: "#4a4a6a", fontSize: 13, padding: "10px 0" }}>Sin eventos próximos</div> : coming.map(ev => {
+                const et = EVENT_TYPE[ev.type] || EVENT_TYPE.especial;
+                return (
+                  <div key={ev.id} style={{ padding: "10px 0", borderBottom: "1px solid #1e1e2e" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: "50%", background: et.color, flexShrink: 0 }} /><div style={{ color: "#dde0ee", fontSize: 13, fontWeight: 500 }}>{ev.title}</div></div>
+                    <div style={{ color: "#666688", fontSize: 11, marginTop: 3, paddingLeft: 16 }}>{fmtDate(ev.date)} · {ev.place}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // ─── ADMIN LAYOUT ─────────────────────────────────────────────────────────────
+    const AdminLayout = ({ session, api, onLogout }) => {
+      const [tab, setTab] = useState("home");
+      const [toast, setToast] = useState(null);
+      const showToast = (msg) => setToast(msg);
+      const nav = [
+        { id: "home", label: "Dashboard", icon: "home" },
+        { id: "students", label: "Alumnos", icon: "users" },
+        { id: "payments", label: "Pagos", icon: "payment" },
+        { id: "events", label: "Eventos", icon: "calendar" },
+        { id: "inventory", label: "Inventario", icon: "box" },
+        { id: "profile", label: "Mi Perfil", icon: "settings" },
+      ];
+      return (
+        <div style={{ display: "flex", minHeight: "100vh" }}>
+          <div style={{ width: 220, background: "#0e0e18", borderRight: "1px solid #1a1a28", display: "flex", flexDirection: "column", padding: "24px 12px", flexShrink: 0 }}>
+            <div style={{ marginBottom: 32, paddingLeft: 8 }}>
+              <div style={{ fontSize: 24, marginBottom: 4 }}>🥋</div>
+              <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 16, letterSpacing: 2, color: "#f0f0fa" }}>DOJANG</div>
+              <div style={{ fontSize: 10, color: "#444466", letterSpacing: 1.5, textTransform: "uppercase" }}>Panel Admin</div>
+            </div>
+            <nav style={{ flex: 1 }}>
+              {nav.map(item => (
+                <div key={item.id} className={`nav-item ${tab === item.id ? "active" : ""}`} onClick={() => setTab(item.id)}>
+                  <Icon name={item.icon} size={16} />{item.label}
+                </div>
+              ))}
+            </nav>
+            <div style={{ borderTop: "1px solid #1a1a28", paddingTop: 16 }}>
+              <div style={{ paddingLeft: 8, marginBottom: 12 }}>
+                <div style={{ fontSize: 12, color: "#dde0ee", fontWeight: 500 }}>{session.name}</div>
+                <div style={{ fontSize: 11, color: "#444466" }}>Administrador</div>
+              </div>
+              <div className="nav-item" onClick={onLogout}><Icon name="logout" size={16} />Cerrar sesión</div>
+            </div>
+          </div>
+          <div style={{ flex: 1, padding: "28px 32px", overflowY: "auto" }}>
+            {tab === "home" && <AdminHome api={api} setTab={setTab} />}
+            {tab === "students" && <AdminStudents api={api} />}
+            {tab === "payments" && <AdminPayments api={api} />}
+            {tab === "events" && <AdminEvents api={api} />}
+            {tab === "inventory" && <AdminInventory api={api} onToast={showToast} />}
+            {tab === "profile" && <AdminProfile api={api} onToast={showToast} />}
+          </div>
+          {toast && <Toast msg={toast} onDone={() => setToast(null)} />}
+        </div>
+      );
+    };
+
+    // ─── PORTAL ALUMNO ────────────────────────────────────────────────────────────
+    const StudentPersonalEdit = ({ student, api, onToast, onClose }) => {
+      const [f, setF] = useState({ ...student.personal || { address: "", blood: "", emergency: "", emergencyPhone: "", medNotes: "" } });
+      const set = (k, v) => setF(p => ({ ...p, [k]: v }));
+      const save = () => { api.updateStudentPersonal(student.id, f); onToast("Datos actualizados"); onClose(); };
+      return (
+        <div>
+          <div className="form-row form-row-2">
+            <div><label className="tk-label">Dirección</label><input className="tk-input" value={f.address} onChange={e => set("address", e.target.value)} /></div>
+            <div><label className="tk-label">Tipo de sangre</label><select className="tk-input" value={f.blood} onChange={e => set("blood", e.target.value)}><option value="">— Seleccionar —</option>{["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(t => <option key={t}>{t}</option>)}</select></div>
+          </div>
+          <div className="form-row form-row-2">
+            <div><label className="tk-label">Contacto de emergencia</label><input className="tk-input" value={f.emergency} onChange={e => set("emergency", e.target.value)} /></div>
+            <div><label className="tk-label">Teléfono emergencia</label><input className="tk-input" value={f.emergencyPhone} onChange={e => set("emergencyPhone", e.target.value)} /></div>
+          </div>
+          <div className="form-row"><div><label className="tk-label">Notas médicas / condiciones</label><textarea className="tk-input" rows={3} value={f.medNotes} onChange={e => set("medNotes", e.target.value)} placeholder="Ej. Asma leve, ninguna condición..." /></div></div>
+          <div style={{ padding: "12px 16px", background: "rgba(255,255,255,.03)", borderRadius: 8, border: "1px solid #1e1e2e", fontSize: 12, color: "#7070a0", marginTop: 8 }}>
+            ℹ️ Solo puedes editar tus datos personales y de emergencia. Para cambios de nombre, cinturón o contraseña, contacta al maestro.
+          </div>
+          <div className="form-actions">
+            <button className="tk-btn btn-ghost" onClick={onClose}>Cancelar</button>
+            <button className="tk-btn btn-red" onClick={save}>Guardar cambios</button>
+          </div>
+        </div>
+      );
+    };
+
+    const StudentPortal = ({ session, api, onLogout }) => {
+      const [tab, setTab] = useState("profile");
+      const [toast, setToast] = useState(null);
+      const [editPersonal, setEditPersonal] = useState(false);
+      const showToast = (msg) => setToast(msg);
+      const student = api.getStudent(session.id);
+      const payments = api.getStudentPayments(session.id);
+      const events = api.getEvents().filter(e => e.date >= todayStr());
+      const exams = api.getStudentExams(session.id);
+      const nextExamDate = api.getNextExamDate(session.id);
+      const daysToExam = daysUntil(nextExamDate);
+      const approvedExams = exams.filter(x => x.passed).length;
+      if (!student) return <div style={{ padding: 40, textAlign: "center", color: "#666688" }}>Alumno no encontrado</div>;
+      const belt = BELT_MAP[student.belt] || BELT_MAP.Blanco;
+      const p = student.personal || {};
+      const tabs = [
+        { id: "profile", label: "Mi perfil", icon: "user" },
+        { id: "exams", label: "Mis exámenes", icon: "diploma" },
+        { id: "payments", label: "Mis pagos", icon: "payment" },
+        { id: "events", label: "Próximos eventos", icon: "calendar" },
+      ];
+      return (
+        <div style={{ minHeight: "100vh" }}>
+          <div style={{ background: "#0e0e18", borderBottom: "1px solid #1a1a28", padding: "16px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <div style={{ fontSize: 22 }}>🥋</div>
+              <div><div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 18, letterSpacing: 2, color: "#f0f0fa" }}>PORTAL DEL ALUMNO</div><div style={{ fontSize: 11, color: "#555577", letterSpacing: 1 }}>Dojang Taekwondo</div></div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <div style={{ textAlign: "right" }}><div style={{ color: "#dde0ee", fontSize: 13, fontWeight: 500 }}>{student.name}</div><BeltBadge belt={student.belt} /></div>
+              <button className="tk-btn btn-ghost btn-sm" onClick={onLogout}><Icon name="logout" size={13} />Salir</button>
+            </div>
+          </div>
+          <div style={{ background: "#0e0e18", borderBottom: "1px solid #1a1a28", display: "flex", padding: "0 28px" }}>
+            {tabs.map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "14px 18px", background: "none", border: "none", cursor: "pointer", color: tab === t.id ? "#ff4444" : "#7070a0", borderBottom: tab === t.id ? "2px solid #c01212" : "2px solid transparent", fontFamily: "'Exo 2',sans-serif", fontSize: 13, fontWeight: tab === t.id ? 600 : 400, transition: "all .15s", letterSpacing: .3, position: "relative" }}>
+                <Icon name={t.icon} size={14} />{t.label}
+                {t.id === "exams" && daysToExam >= 0 && daysToExam <= 21 && <span className="pulse-dot" style={{ position: "absolute", top: 10, right: 6, background: daysToExam <= 7 ? "#f87171" : "#d4960f", boxShadow: `0 0 6px ${daysToExam <= 7 ? "#f87171" : "#d4960f"}` }} />}
+              </button>
+            ))}
+          </div>
+          <div style={{ padding: "28px 32px", maxWidth: 920, margin: "0 auto" }}>
+
+            {/* PERFIL */}
+            {tab === "profile" && (
+              <div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+                  <div className="card" style={{ padding: 24 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 18 }}>
+                      <div style={{ width: 56, height: 56, borderRadius: "50%", background: belt.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>🥷</div>
+                      <div><div style={{ color: "#f0f0fa", fontWeight: 600, fontSize: 16 }}>{student.name}</div><BeltBadge belt={student.belt} /></div>
+                    </div>
+                    <div style={{ display: "grid", gap: 10 }}>
+                      {[{ label: "Edad", value: `${student.age} años` }, { label: "Fecha de ingreso", value: fmtDate(student.joined) }, { label: "Exámenes aprobados", value: `${approvedExams}` }, { label: "Estatus", value: student.active ? "Activo ✓" : "Inactivo" }].map(row => (
+                        <div key={row.label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #151520" }}>
+                          <span style={{ color: "#555577", fontSize: 12 }}>{row.label}</span><span style={{ color: "#dde0ee", fontSize: 13 }}>{row.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="card" style={{ padding: 24 }}>
+                    <div style={{ fontSize: 12, color: "#555577", letterSpacing: .8, textTransform: "uppercase", marginBottom: 14 }}>Contacto del tutor</div>
+                    <div style={{ display: "grid", gap: 10 }}>
+                      {[{ label: "Nombre", value: student.parent }, { label: "Teléfono", value: student.phone }, { label: "Correo", value: student.email }].map(row => (
+                        <div key={row.label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #151520" }}>
+                          <span style={{ color: "#555577", fontSize: 12 }}>{row.label}</span><span style={{ color: "#dde0ee", fontSize: 13 }}>{row.value || "—"}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Datos personales editables */}
+                <div className="card" style={{ padding: 24, marginBottom: 16 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                    <div style={{ fontSize: 12, color: "#555577", letterSpacing: .8, textTransform: "uppercase" }}>Mis datos personales</div>
+                    <button className="tk-btn btn-blue btn-sm" onClick={() => setEditPersonal(true)}><Icon name="edit" size={13} />Editar mis datos</button>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    {[
+                      { label: "Dirección", value: p.address || "—" },
+                      { label: "Tipo de sangre", value: p.blood || "—" },
+                      { label: "Contacto de emergencia", value: p.emergency || "—" },
+                      { label: "Tel. emergencia", value: p.emergencyPhone || "—" },
+                    ].map(row => (
+                      <div key={row.label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #151520" }}>
+                        <span style={{ color: "#555577", fontSize: 12 }}>{row.label}</span><span style={{ color: "#dde0ee", fontSize: 13 }}>{row.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {p.medNotes && (
+                    <div style={{ marginTop: 12, padding: "10px 14px", background: "rgba(192,18,18,.06)", borderRadius: 8, border: "1px solid rgba(192,18,18,.15)" }}>
+                      <div style={{ fontSize: 11, color: "#555577", textTransform: "uppercase", letterSpacing: .7, marginBottom: 4 }}>Notas médicas</div>
+                      <div style={{ fontSize: 13, color: "#b0b0cc" }}>{p.medNotes}</div>
+                    </div>
+                  )}
+                  {!p.address && !p.blood && !p.emergency && (
+                    <div style={{ textAlign: "center", padding: "20px 0", color: "#4a4a6a", fontSize: 13 }}>
+                      Sin datos personales aún. <button onClick={() => setEditPersonal(true)} style={{ background: "none", border: "none", color: "#c01212", cursor: "pointer", fontSize: 13, textDecoration: "underline" }}>Agregar ahora</button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="card" style={{ padding: 24 }}>
+                  <div style={{ fontSize: 12, color: "#555577", letterSpacing: .8, textTransform: "uppercase", marginBottom: 16 }}>Progresión de cinturones</div>
+                  <div style={{ display: "flex", gap: 0, alignItems: "center" }}>
+                    {BELT_LIST.map((b, i) => {
+                      const bm = BELT_MAP[b]; const isCurrent = b === student.belt; const beltIdx = BELT_LIST.indexOf(student.belt); const achieved = i <= beltIdx;
+                      return (
+                        <div key={b} style={{ display: "flex", alignItems: "center", flex: 1 }}>
+                          <div style={{ textAlign: "center", flex: 1 }}>
+                            <div style={{ width: 28, height: 28, borderRadius: "50%", background: achieved ? bm.bg : "#1a1a2a", border: isCurrent ? `2px solid ${bm.bg}` : "2px solid #2a2a40", margin: "0 auto 4px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, boxShadow: isCurrent ? `0 0 12px ${bm.bg}55` : "none" }}>{isCurrent ? "✓" : ""}</div>
+                            <div style={{ fontSize: 9, color: isCurrent ? bm.bg : "#444466", letterSpacing: .3 }}>{b}</div>
+                          </div>
+                          {i < BELT_LIST.length - 1 && <div style={{ height: 2, flex: .3, background: achieved && i < beltIdx ? "#2a2a50" : "#1a1a28" }} />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* EXÁMENES */}
+            {tab === "exams" && (
+              <div>
+                <div className="section-title" style={{ marginBottom: 20 }}>MIS EXÁMENES</div>
+                <ExamReminder nextDate={nextExamDate} />
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 24 }}>
+                  {[{ label: "Presentados", value: exams.length, color: "#dde0ee" }, { label: "Aprobados", value: approvedExams, color: "#4ade80" }, { label: "Días al próximo", value: daysToExam < 0 ? "Vencido" : `${daysToExam}d`, color: daysToExam < 0 ? "#f87171" : daysToExam <= 14 ? "#d4960f" : "#60a5fa" }].map(s => (
+                    <div key={s.label} className="stat-card"><div className="stat-value" style={{ color: s.color }}>{s.value}</div><div className="stat-label">{s.label}</div></div>
+                  ))}
+                </div>
+                <div style={{ fontSize: 12, color: "#555577", letterSpacing: .8, textTransform: "uppercase", marginBottom: 16 }}>Historial cronológico</div>
+                <ExamTimeline exams={exams} />
+                {exams.length > 0 && (
+                  <div style={{ paddingLeft: 32, marginTop: 18 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}><div style={{ height: 1, flex: 1, background: "#1e1e2e", maxWidth: 60 }} /><span style={{ fontSize: 10, color: "#555577", background: "#0e0e18", border: "1px solid #1e1e2e", padding: "2px 8px", borderRadius: 20, whiteSpace: "nowrap" }}>{EXAM_MONTHS} meses después</span><div style={{ height: 1, flex: 1, background: "#1e1e2e", maxWidth: 20 }} /></div>
+                    <div style={{ background: daysToExam <= 14 ? "rgba(212,150,15,.08)" : "rgba(74,222,128,.05)", border: `1px dashed ${daysToExam <= 14 ? "#d4960f" : "#4ade80"}`, borderRadius: 8, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+                      <div style={{ fontSize: 20 }}>🎯</div>
+                      <div><div style={{ color: daysToExam <= 7 ? "#f87171" : daysToExam <= 14 ? "#d4960f" : "#4ade80", fontWeight: 600, fontSize: 13 }}>Próximo examen estimado</div><div style={{ color: "#9090b0", fontSize: 12, marginTop: 2 }}>{fmtDate(nextExamDate)} · {daysToExam >= 0 ? `faltan ${daysToExam} días` : `venció hace ${Math.abs(daysToExam)} días`}</div></div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* PAGOS */}
+            {tab === "payments" && (
+              <div>
+                <div className="section-title" style={{ marginBottom: 20 }}>MIS PAGOS Y LIQUIDACIONES</div>
+                {payments.length === 0 ? <div className="card empty-state" style={{ padding: 48 }}><div className="empty-icon">✅</div><div>Sin planes de pago activos</div></div> : (
+                  <div style={{ display: "grid", gap: 14 }}>
+                    {payments.map(p => (
+                      <div key={p.id} className="card" style={{ padding: 22 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+                          <div><div style={{ color: "#f0f0fa", fontWeight: 600, fontSize: 15, marginBottom: 4 }}>{p.concept}</div><StatusTag status={p.status} /></div>
+                          <div style={{ textAlign: "right" }}><div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: "#f0f0fa", lineHeight: 1 }}>{mxn(p.total)}</div><div style={{ fontSize: 11, color: "#555577", marginTop: 2 }}>total del plan</div></div>
+                        </div>
+                        <ProgressBar value={p.paid} max={p.total} />
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginTop: 14 }}>
+                          {[{ label: "Pagado", value: mxn(p.paid), color: "#4ade80" }, { label: "Restante", value: mxn(p.total - p.paid), color: "#f87171" }, { label: "Cuotas", value: `${p.instPaid}/${p.installments}`, color: "#dde0ee" }, { label: "Próx. pago", value: fmtDate(p.nextDue), color: "#d4960f" }].map(item => (
+                            <div key={item.label} style={{ background: "#0e0e18", borderRadius: 8, padding: "10px 12px" }}><div style={{ fontSize: 10, color: "#555577", textTransform: "uppercase", letterSpacing: .7, marginBottom: 4 }}>{item.label}</div><div style={{ fontWeight: 600, color: item.color, fontSize: 14 }}>{item.value}</div></div>
+                          ))}
+                        </div>
+                        {p.notes && <div style={{ marginTop: 12, fontSize: 12, color: "#7070a0", borderTop: "1px solid #1e1e2e", paddingTop: 10 }}>Nota: {p.notes}</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* EVENTOS */}
+            {tab === "events" && (
+              <div>
+                <div className="section-title" style={{ marginBottom: 20 }}>PRÓXIMOS EVENTOS</div>
+                {events.length === 0 ? <div className="card empty-state" style={{ padding: 48 }}><div className="empty-icon">📅</div><div>Sin eventos próximos</div></div> : (
+                  <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))" }}>
+                    {events.map(ev => {
+                      const et = EVENT_TYPE[ev.type] || EVENT_TYPE.especial;
+                      return (
+                        <div key={ev.id} className="card" style={{ padding: 20, borderTop: `3px solid ${et.color}` }}>
+                          <EventTypeBadge type={ev.type} />
+                          <div style={{ fontWeight: 600, color: "#f0f0fa", margin: "10px 0 6px", fontSize: 14, lineHeight: 1.4 }}>{ev.title}</div>
+                          <div style={{ color: et.color, fontSize: 13, fontWeight: 500, marginBottom: 4 }}>📅 {fmtDate(ev.date)}</div>
+                          {ev.place && <div style={{ color: "#666688", fontSize: 12, marginBottom: 10 }}>📍 {ev.place}</div>}
+                          {ev.desc && <div style={{ color: "#7070a0", fontSize: 12, lineHeight: 1.5, borderTop: "1px solid #1e1e2e", paddingTop: 10 }}>{ev.desc}</div>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {editPersonal && (
+            <Modal title="EDITAR MIS DATOS PERSONALES" onClose={() => setEditPersonal(false)} lg>
+              <StudentPersonalEdit student={student} api={api} onToast={showToast} onClose={() => setEditPersonal(false)} />
+            </Modal>
+          )}
+          {toast && <Toast msg={toast} onDone={() => setToast(null)} />}
+        </div>
+      );
+    };
+
+    // ─── ROOT ─────────────────────────────────────────────────────────────────────
+    function App() {
+      const [db, setDb] = useState(INIT_DB);
+      const [session, setSession] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const api = createApi(db, setDb);
+
+      useEffect(() => {
+        // Carga alumnos públicamente para que el login del paso 1 los encuentre
+        fetch(API_URL + "/api/alumnos/publico").then(r => r.json()).then(students => {
+          if (!Array.isArray(students)) return;
+          const mapped = students.map(a => ({
+            id: a.num_control, name: a.nombre,
+            age: 0, belt: "Blanco", parent: "", phone: "", email: "",
+            joined: "", active: true,
+            user: a.num_control, pass: "REAL", firstLogin: false,
+            personal: { address: "", blood: "", emergency: "", emergencyPhone: "", medNotes: "" }
+          }));
+          setDb(prev => ({ ...prev, students: mapped }));
+        }).catch(() => { }).finally(() => setLoading(false));
+      }, []);
+
+      const loadApiData = async (tok) => {
+        try {
+          const h = { "Content-Type": "application/json", "Authorization": `Bearer ${tok}` };
+          const fetchJ = (url) => fetch(API_URL + url, { headers: h }).then(r => r.json());
+          const [students, payments, exams] = await Promise.all([
+            fetchJ("/api/alumnos"),
+            fetchJ("/api/pagos"),
+            fetchJ("/api/examenes"),
+          ]);
+          const mappedStudents = Array.isArray(students) ? students.map(a => ({
+            id: a.num_control, name: a.nombre,
+            age: a.fecha_nacimiento ? Math.floor((new Date() - new Date(a.fecha_nacimiento)) / (365.25 * 24 * 60 * 60 * 1000)) : 0,
+            belt: a.cinta_color || "Blanco", parent: a.responsable_nombre || "",
+            phone: a.responsable_tel || "",
+            email: a.email || "",
+            joined: a.fecha_ingreso ? a.fecha_ingreso.split('T')[0] : todayStr(), active: true,
+            user: a.num_control, pass: "1234",
+            personal: {
+              address: a.direccion || "",
+              blood: a.tipo_sangre || "",
+              emergency: a.contacto_emergencia || "",
+              emergencyPhone: a.tel_emergencia || "",
+              medNotes: a.notas_medicas || ""
+            }
+          })) : [];
+          const mappedPayments = Array.isArray(payments) ? payments.map(p => ({
+            id: String(p.id_pago), sid: p.num_control_responsable,
+            concept: p.tipo_pago || "Pago", total: parseFloat(p.monto_total) || 0,
+            paid: parseFloat(p.monto_abonado) || 0,
+            installments: p.metodo_pago === "A plazos" ? 4 : 1,
+            instPaid: p.estado_pago === "Liquidado" ? 1 : 0,
+            instAmt: parseFloat(p.monto_total) || 0, start: p.fecha_pago || todayStr(),
+            nextDue: null, status: p.estado_pago === "Liquidado" ? "liquidado" : p.estado_pago === "Vencido" ? "vencido" : "en_proceso", notes: ""
+          })) : [];
+          const mappedExams = Array.isArray(exams) ? exams.map(x => ({
+            id: String(x.id_examen), sid: x.num_control_alumno,
+            date: x.fecha || todayStr(), fromBelt: "Blanco",
+            toBelt: x.cinta_aspirada_color || "Amarillo",
+            passed: x.resultado === "Aprobado", notes: x.observaciones || ""
+          })) : [];
+          setDb(prev => ({
+            ...prev,
+            students: mappedStudents.length > 0 ? mappedStudents : prev.students,
+            payments: mappedPayments.length > 0 ? mappedPayments : prev.payments,
+            exams: mappedExams.length > 0 ? mappedExams : prev.exams,
+          }));
+        } catch (e) { console.log("Usando datos locales:", e); }
+      };
+
+      const handleLogin = useCallback(async (user, pass, isFirstLogin = false) => {
+        setLoading(true);
+        setSession(null);
+        // Si es primer acceso, primero cambia la contraseña en la API
+        if (isFirstLogin) {
+          try {
+            // Login con contraseña temporal para obtener token
+            const tmp = await api.login(user, "CAMBIAR");
+            if (tmp && _token) {
+              await fetch(API_URL + "/api/auth/cambiar-pass", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${_token}` },
+                body: JSON.stringify({ nuevaPassword: pass })
+              });
+            }
+          } catch (e) { console.log("Error cambiando contraseña:", e); }
+        }
+        const result = await api.login(user, pass);
+        if (result) {
+          await loadApiData(_token);
+          // Asegurar que id esté en la sesión
+          const sessionWithId = { ...result, id: result.id || user };
+          setSession(sessionWithId);
+        }
+        setLoading(false);
+        return result;
+      }, [db]);
+
+      if (loading) return (
+        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0b0b12", flexDirection: "column", gap: 16 }}>
+          <div style={{ fontSize: 40 }}>🥋</div>
+          <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 20, letterSpacing: 3, color: "#c01212" }}>CARGANDO...</div>
+          <div style={{ color: "#555577", fontSize: 13 }}>Conectando con el servidor...</div>
+        </div>
+      );
+      if (!session) return <LoginPage onLogin={handleLogin} db={db} />;
+      if (session.role === "admin") return <AdminLayout session={session} api={api} onLogout={() => setSession(null)} />;
+      return <StudentPortal session={session} api={api} onLogout={() => setSession(null)} />;
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+
+</html>
