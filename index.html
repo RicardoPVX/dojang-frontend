@@ -357,7 +357,7 @@ function createApi(db, setDb) {
     },
     updatePayment:(id,d)=>mutate(db=>({payments:db.payments.map(p=>p.id===id?{...p,...d}:p)})),
     deletePayment:(id)=>mutate(db=>({payments:db.payments.filter(p=>p.id!==id)})),
-    pagarMensualidad: async (student, checked, mes, anio) => {
+    pagarMensualidad: async (student, checked, mes, anio, fecha) => {
       const respId = student.respId || `RESP-${student.id}`;
       const existing = db.payments.find(p => {
         if (p.concept !== "Mensualidad") return false;
@@ -367,21 +367,22 @@ function createApi(db, setDb) {
       });
       if (checked && !existing) {
         try {
+          const fechaPago = fecha || todayStr();
           const resp = await apiFetch("/api/pagos", {method:"POST", body: JSON.stringify({
             monto_total: 500, monto_abonado: 500,
             tipo_pago: "Mensualidad", metodo_pago: "Contado",
             estado_pago: "Liquidado",
+            fecha_pago: fechaPago,
             num_control_responsable: respId,
             mes_correspondiente: mes + 1,
             anio: anio
           })});
           if (resp?.id_pago) {
-            const today = new Date().toISOString().split("T")[0];
             mutate(db=>({payments:[...db.payments,{
               id: String(resp.id_pago), sid: respId,
               concept:"Mensualidad", total:500, paid:500,
               installments:1, instPaid:1, instAmt:500,
-              start: today, nextDue:null, status:"liquidado", notes:""
+              start: fechaPago, nextDue:null, status:"liquidado", notes:""
             }]}));
           }
         } catch(e){ console.error("Error pagando mensualidad:", e); }
@@ -1196,14 +1197,14 @@ const MensualidadesPanel = ({api}) => {
   const payments = api.getPayments();
   const prevMes = () => { if(mes===0){setMes(11);setAnio(a=>a-1);}else setMes(m=>m-1); };
   const nextMes = () => { if(mes===11){setMes(0);setAnio(a=>a+1);}else setMes(m=>m+1); };
-  const pagadoEn = (s) => payments.some(p => {
+  const pagoDeAlumno = (s) => payments.find(p => {
     if(p.concept!=="Mensualidad") return false;
     const respId = s.respId||`RESP-${s.id}`;
     if(p.sid!==respId) return false;
     const d = new Date(p.start);
     return d.getMonth()===mes && d.getFullYear()===anio;
   });
-  const totalPagados = students.filter(s=>pagadoEn(s)).length;
+  const totalPagados = students.filter(s=>!!pagoDeAlumno(s)).length;
   return(
     <div>
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20,flexWrap:"wrap"}}>
@@ -1218,20 +1219,34 @@ const MensualidadesPanel = ({api}) => {
       </div>
       <div className="card" style={{padding:0,overflow:"hidden"}}>
         <table>
-          <thead><tr><th>Alumno</th><th>Cinturón</th><th>Monto</th><th style={{textAlign:"center"}}>Estado</th></tr></thead>
+          <thead><tr><th>Alumno</th><th>Cinturón</th><th>Monto</th><th>Fecha de pago</th><th style={{textAlign:"center"}}>Estado</th></tr></thead>
           <tbody>
             {students.length===0&&<tr><td colSpan={4}><div className="empty-state"><div className="empty-icon">👥</div><div>Sin alumnos registrados</div></div></td></tr>}
             {students.map(s=>{
-              const pagado=pagadoEn(s);
+              const pago=pagoDeAlumno(s);
+              const pagado=!!pago;
               return(
                 <tr key={s.id}>
                   <td style={{color:"#dde0ee",fontWeight:500}}>{s.name}</td>
                   <td><BeltBadge belt={s.belt}/></td>
                   <td style={{color:"#9090b0",fontWeight:600}}>$500</td>
+                  <td>
+                    {pagado
+                      ? <span style={{color:"#9090b0",fontSize:12}}>{fmtDate(pago.start)}</span>
+                      : <input type="date" className="tk-input" defaultValue={todayStr()}
+                          id={`fecha-${s.id}`}
+                          style={{fontSize:12,padding:"4px 8px",width:130}}/>
+                    }
+                  </td>
                   <td style={{textAlign:"center"}}>
                     <label style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer"}}>
                       <input type="checkbox" checked={pagado}
-                        onChange={e=>api.pagarMensualidad(s,e.target.checked,mes,anio)}
+                        onChange={e=>{
+                          const fecha = !pagado
+                            ? (document.getElementById(`fecha-${s.id}`)?.value || todayStr())
+                            : null;
+                          api.pagarMensualidad(s,e.target.checked,mes,anio,fecha);
+                        }}
                         style={{width:18,height:18,cursor:"pointer",accentColor:"#c01212"}}/>
                       <span style={{color:pagado?"#4ade80":"#f87171",fontSize:13,fontWeight:600,minWidth:70}}>
                         {pagado?"✓ Pagado":"Pendiente"}
