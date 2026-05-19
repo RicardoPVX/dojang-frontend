@@ -357,6 +357,41 @@ function createApi(db, setDb) {
     },
     updatePayment:(id,d)=>mutate(db=>({payments:db.payments.map(p=>p.id===id?{...p,...d}:p)})),
     deletePayment:(id)=>mutate(db=>({payments:db.payments.filter(p=>p.id!==id)})),
+    pagarMensualidad: async (student, checked, mes, anio) => {
+      const respId = student.respId || `RESP-${student.id}`;
+      const existing = db.payments.find(p => {
+        if (p.concept !== "Mensualidad") return false;
+        if (p.sid !== respId) return false;
+        const d = new Date(p.start);
+        return d.getMonth() === mes && d.getFullYear() === anio;
+      });
+      if (checked && !existing) {
+        try {
+          const resp = await apiFetch("/api/pagos", {method:"POST", body: JSON.stringify({
+            monto_total: 500, monto_abonado: 500,
+            tipo_pago: "Mensualidad", metodo_pago: "Contado",
+            estado_pago: "Liquidado",
+            num_control_responsable: respId,
+            mes_correspondiente: mes + 1,
+            anio: anio
+          })});
+          if (resp?.id_pago) {
+            const today = new Date().toISOString().split("T")[0];
+            mutate(db=>({payments:[...db.payments,{
+              id: String(resp.id_pago), sid: respId,
+              concept:"Mensualidad", total:500, paid:500,
+              installments:1, instPaid:1, instAmt:500,
+              start: today, nextDue:null, status:"liquidado", notes:""
+            }]}));
+          }
+        } catch(e){ console.error("Error pagando mensualidad:", e); }
+      } else if (!checked && existing) {
+        try {
+          await apiFetch(`/api/pagos/${existing.id}`, {method:"DELETE"});
+          mutate(db=>({payments:db.payments.filter(p=>p.id!==existing.id)}));
+        } catch(e){ console.error("Error:", e); }
+      }
+    },
     registerInstallment: async (id) => {
       try { await apiFetch(`/api/pagos/${id}/abonar`, {method:"PUT", body: JSON.stringify({abono: db.payments.find(p=>p.id===id)?.instAmt || 0})}); } catch(e) {}
       mutate(db=>({
@@ -1152,6 +1187,67 @@ const AdminStudents = ({api}) => {
 };
 
 // ─── ADMIN PAGOS ──────────────────────────────────────────────────────────────
+const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const MensualidadesPanel = ({api}) => {
+  const now = new Date();
+  const [mes, setMes] = useState(now.getMonth());
+  const [anio, setAnio] = useState(now.getFullYear());
+  const students = api.getStudents();
+  const payments = api.getPayments();
+  const prevMes = () => { if(mes===0){setMes(11);setAnio(a=>a-1);}else setMes(m=>m-1); };
+  const nextMes = () => { if(mes===11){setMes(0);setAnio(a=>a+1);}else setMes(m=>m+1); };
+  const pagadoEn = (s) => payments.some(p => {
+    if(p.concept!=="Mensualidad") return false;
+    const respId = s.respId||`RESP-${s.id}`;
+    if(p.sid!==respId) return false;
+    const d = new Date(p.start);
+    return d.getMonth()===mes && d.getFullYear()===anio;
+  });
+  const totalPagados = students.filter(s=>pagadoEn(s)).length;
+  return(
+    <div>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20,flexWrap:"wrap"}}>
+        <button className="tk-btn btn-ghost btn-sm" onClick={prevMes}>‹</button>
+        <span style={{color:"#dde0ee",fontWeight:700,fontSize:16,minWidth:170,textAlign:"center"}}>{MESES[mes]} {anio}</span>
+        <button className="tk-btn btn-ghost btn-sm" onClick={nextMes}>›</button>
+        <span style={{marginLeft:"auto",color:"#9090b0",fontSize:13}}>
+          <span style={{color:"#4ade80",fontWeight:600}}>{totalPagados}</span>/{students.length} pagados
+          &nbsp;·&nbsp;
+          <span style={{color:"#4ade80",fontWeight:600}}>${totalPagados*500}</span> recaudado
+        </span>
+      </div>
+      <div className="card" style={{padding:0,overflow:"hidden"}}>
+        <table>
+          <thead><tr><th>Alumno</th><th>Cinturón</th><th>Monto</th><th style={{textAlign:"center"}}>Estado</th></tr></thead>
+          <tbody>
+            {students.length===0&&<tr><td colSpan={4}><div className="empty-state"><div className="empty-icon">👥</div><div>Sin alumnos registrados</div></div></td></tr>}
+            {students.map(s=>{
+              const pagado=pagadoEn(s);
+              return(
+                <tr key={s.id}>
+                  <td style={{color:"#dde0ee",fontWeight:500}}>{s.name}</td>
+                  <td><BeltBadge belt={s.belt}/></td>
+                  <td style={{color:"#9090b0",fontWeight:600}}>$500</td>
+                  <td style={{textAlign:"center"}}>
+                    <label style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer"}}>
+                      <input type="checkbox" checked={pagado}
+                        onChange={e=>api.pagarMensualidad(s,e.target.checked,mes,anio)}
+                        style={{width:18,height:18,cursor:"pointer",accentColor:"#c01212"}}/>
+                      <span style={{color:pagado?"#4ade80":"#f87171",fontSize:13,fontWeight:600,minWidth:70}}>
+                        {pagado?"✓ Pagado":"Pendiente"}
+                      </span>
+                    </label>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
 const PaymentForm = ({initial,students,onSave,onClose}) => {
   const empty={sid:"",concept:"",total:"",installments:1,instAmt:"",start:todayStr(),nextDue:"",status:"en_proceso",notes:""};
   const [f,setF]=useState(initial?{...initial}:empty);
@@ -1183,14 +1279,22 @@ const PaymentForm = ({initial,students,onSave,onClose}) => {
 };
 const AdminPayments = ({api}) => {
   const [modal,setModal]=useState(null);
+  const [tab,setTab]=useState("mensualidades");
   const students=api.getStudents();const payments=api.getPayments();
-  const getName=(sid)=>students.find(s=>s.id===sid)?.name||"—";
+  const getName=(sid)=>students.find(s=>s.id===sid)?.name||students.find(s=>`RESP-${s.id}`===sid)?.name||"—";
   return(
     <div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
         <div className="section-title">LIQUIDACIONES Y PAGOS</div>
-        <button className="tk-btn btn-red" onClick={()=>setModal("add")}><Icon name="plus" size={14}/>Nuevo plan</button>
+        {tab==="otros"&&<button className="tk-btn btn-red" onClick={()=>setModal("add")}><Icon name="plus" size={14}/>Nuevo plan</button>}
       </div>
+      <div style={{display:"flex",gap:4,marginBottom:20,borderBottom:"1px solid #1a1a28",paddingBottom:0}}>
+        {[["mensualidades","📅 Mensualidades"],["otros","📋 Otros pagos"]].map(([id,label])=>(
+          <button key={id} onClick={()=>setTab(id)} style={{padding:"8px 18px",background:"none",border:"none",cursor:"pointer",fontSize:13,fontWeight:600,color:tab===id?"#c01212":"#666688",borderBottom:tab===id?"2px solid #c01212":"2px solid transparent",marginBottom:-1}}>{label}</button>
+        ))}
+      </div>
+      {tab==="mensualidades"&&<MensualidadesPanel api={api}/>}
+      {tab==="otros"&&<div>
       <div className="card">
         <table>
           <thead><tr><th>Alumno</th><th>Concepto</th><th>Avance</th><th>Pagos</th><th>Próx. vencimiento</th><th>Estado</th><th></th></tr></thead>
@@ -1212,6 +1316,7 @@ const AdminPayments = ({api}) => {
       {modal==="add"&&<Modal title="NUEVO PLAN DE PAGO" onClose={()=>setModal(null)} lg><PaymentForm students={students} onSave={d=>api.addPayment(d)} onClose={()=>setModal(null)}/></Modal>}
       {modal?.edit&&<Modal title="EDITAR PLAN DE PAGO" onClose={()=>setModal(null)} lg><PaymentForm initial={modal.edit} students={students} onSave={d=>api.updatePayment(modal.edit.id,d)} onClose={()=>setModal(null)}/></Modal>}
       {modal?.del&&<ConfirmModal message="¿Eliminar este plan de pago?" onConfirm={()=>api.deletePayment(modal.del)} onClose={()=>setModal(null)}/>}
+      </div>}
     </div>
   );
 };
@@ -1683,7 +1788,7 @@ function App() {
         phone: a.responsable_tel || "",
         email: a.email || "",
         joined: a.fecha_ingreso ? a.fecha_ingreso.split('T')[0] : todayStr(), active:true,
-        user: a.num_control, pass:"1234",
+        user: a.num_control, pass:"1234", respId: a.num_control_responsable,
         personal:{
           address: a.direccion || "",
           blood: a.tipo_sangre || "",
