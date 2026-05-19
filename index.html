@@ -87,6 +87,24 @@
     @keyframes slideOut{from{transform:translateY(0);opacity:1}to{transform:translateY(40px);opacity:0}}
     .toast{position:fixed;bottom:24px;right:24px;background:#13131e;border:1px solid #4ade8044;color:#4ade80;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:9999;animation:slideIn .3s ease}
     .toast-exit{animation:slideOut .3s ease forwards}
+    /* ── MOBILE ── */
+    .sidebar{width:220px;background:#0e0e18;border-right:1px solid #1a1a28;display:flex;flex-direction:column;padding:24px 12px;flex-shrink:0;transition:transform .25s}
+    .main-content{flex:1;padding:28px 32px;overflow-y:auto;min-width:0}
+    .mobile-header{display:none;align-items:center;gap:12px;margin-bottom:20px}
+    .hamburger{background:transparent;border:1px solid #2a2a40;color:#dde0ee;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:18px;line-height:1}
+    .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:40}
+    @media(max-width:768px){
+      .sidebar{position:fixed;top:0;bottom:0;left:0;z-index:50;transform:translateX(-100%)}
+      .sidebar.open{transform:translateX(0)}
+      .sidebar-overlay.open{display:block}
+      .main-content{padding:16px}
+      .mobile-header{display:flex}
+      th,td{padding:8px 10px;font-size:12px}
+      .form-row-2{grid-template-columns:1fr}
+      .form-row-3{grid-template-columns:1fr}
+      .stat-card{padding:12px 14px}
+      .stat-value{font-size:26px}
+    }
   </style>
 </head>
 <body>
@@ -1058,7 +1076,7 @@ const LoginPage = ({onLogin, db}) => {
 
 // ─── STUDENT FORM ─────────────────────────────────────────────────────────────
 const StudentForm = ({initial,onSave,onClose,api}) => {
-  const empty={name:"",age:"",belt:"Blanco",parent:"",phone:"",email:"",joined:todayStr(),active:true,user:"",pass:"CAMBIAR",personal:{address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}};
+  const empty={name:"",dob:"",belt:"Blanco",parent:"",phone:"",email:"",joined:todayStr(),active:true,user:"",pass:"CAMBIAR",personal:{address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}};
   const [f,setF] = useState(initial||empty);
   const set = (k,v)=>setF(p=>({...p,[k]:v}));
   const setP = (k,v)=>setF(p=>({...p,personal:{...p.personal,[k]:v}}));
@@ -1067,13 +1085,18 @@ const StudentForm = ({initial,onSave,onClose,api}) => {
     const newId = v.trim().length>=2 ? genStudentId(v, existingIds) : "";
     setF(p=>({...p, name:v, user: initial ? p.user : newId}));
   };
-  const submit = (e)=>{e.preventDefault();onSave({...f,id:f.user});onClose();};
+  const submit = (e)=>{
+    e.preventDefault();
+    const age = f.dob ? Math.floor((new Date()-new Date(f.dob))/(365.25*24*60*60*1000)) : 0;
+    onSave({...f, id:f.user, age});
+    onClose();
+  };
   return(
     <form onSubmit={submit}>
       <div style={{fontSize:11,color:"#c01212",textTransform:"uppercase",letterSpacing:.8,marginBottom:12}}>Datos del alumno</div>
       <div className="form-row form-row-2">
         <div><label className="tk-label">Nombre completo</label><input className="tk-input" required value={f.name} onChange={e=>handleName(e.target.value)}/></div>
-        <div><label className="tk-label">Edad</label><input className="tk-input" type="number" required min="3" max="99" value={f.age} onChange={e=>set("age",+e.target.value)}/></div>
+        <div><label className="tk-label">Fecha de nacimiento</label><input className="tk-input" type="date" required value={f.dob||""} onChange={e=>set("dob",e.target.value)}/></div>
       </div>
       <div className="form-row form-row-2">
         <div><label className="tk-label">Cinturón</label><select className="tk-input" value={f.belt} onChange={e=>set("belt",e.target.value)}>{BELT_LIST.map(b=><option key={b}>{b}</option>)}</select></div>
@@ -1353,6 +1376,7 @@ const AdminHome = ({api,setTab}) => {
 const AdminLayout = ({session,api,onLogout}) => {
   const [tab,setTab]=useState("home");
   const [toast,setToast]=useState(null);
+  const [sideOpen,setSideOpen]=useState(false);
   const showToast=(msg)=>setToast(msg);
   const nav=[
     {id:"home",label:"Dashboard",icon:"home"},
@@ -1362,9 +1386,11 @@ const AdminLayout = ({session,api,onLogout}) => {
     {id:"inventory",label:"Inventario",icon:"box"},
     {id:"profile",label:"Mi Perfil",icon:"settings"},
   ];
+  const goTab=(id)=>{setTab(id);setSideOpen(false);};
   return(
     <div style={{display:"flex",minHeight:"100vh"}}>
-      <div style={{width:220,background:"#0e0e18",borderRight:"1px solid #1a1a28",display:"flex",flexDirection:"column",padding:"24px 12px",flexShrink:0}}>
+      <div className={`sidebar-overlay ${sideOpen?"open":""}`} onClick={()=>setSideOpen(false)}/>
+      <div className={`sidebar ${sideOpen?"open":""}`}>
         <div style={{marginBottom:32,paddingLeft:8}}>
           <div style={{fontSize:24,marginBottom:4}}>🥋</div>
           <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,letterSpacing:2,color:"#f0f0fa"}}>DOJANG</div>
@@ -1372,7 +1398,7 @@ const AdminLayout = ({session,api,onLogout}) => {
         </div>
         <nav style={{flex:1}}>
           {nav.map(item=>(
-            <div key={item.id} className={`nav-item ${tab===item.id?"active":""}`} onClick={()=>setTab(item.id)}>
+            <div key={item.id} className={`nav-item ${tab===item.id?"active":""}`} onClick={()=>goTab(item.id)}>
               <Icon name={item.icon} size={16}/>{item.label}
             </div>
           ))}
@@ -1385,7 +1411,11 @@ const AdminLayout = ({session,api,onLogout}) => {
           <div className="nav-item" onClick={onLogout}><Icon name="logout" size={16}/>Cerrar sesión</div>
         </div>
       </div>
-      <div style={{flex:1,padding:"28px 32px",overflowY:"auto"}}>
+      <div className="main-content">
+        <div className="mobile-header">
+          <button className="hamburger" onClick={()=>setSideOpen(true)}>☰</button>
+          <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,letterSpacing:2,color:"#f0f0fa"}}>DOJANG</div>
+        </div>
         {tab==="home"&&<AdminHome api={api} setTab={setTab}/>}
         {tab==="students"&&<AdminStudents api={api}/>}
         {tab==="payments"&&<AdminPayments api={api}/>}
@@ -1665,6 +1695,7 @@ function App() {
       ]);
       const mappedStudents = Array.isArray(students) ? students.map(a => ({
         id: a.num_control, name: a.nombre,
+        dob: a.fecha_nacimiento ? a.fecha_nacimiento.split('T')[0] : "",
         age: a.fecha_nacimiento ? Math.floor((new Date()-new Date(a.fecha_nacimiento))/(365.25*24*60*60*1000)) : 0,
         belt: a.cinta_color||"Blanco", parent: a.responsable_nombre||"",
         phone: a.responsable_tel || "",
