@@ -328,7 +328,11 @@ function createApi(db, setDb) {
           notas_medicas: d.personal?.medNotes || ""
         })});
       } catch(e) { console.error("Error actualizando alumno:", e); }
-      mutate(db=>({students:db.students.map(s=>s.id===id?{...s,...d}:s)}));
+      mutate(db=>({students:db.students.map(s=>{
+        if(s.id!==id) return s;
+        const age = d.dob ? Math.floor((new Date()-new Date(d.dob))/(365.25*24*60*60*1000)) : s.age;
+        return {...s,...d, age};
+      })}));
     },
     updateStudentPersonal:(id,personal)=>mutate(db=>({students:db.students.map(s=>s.id===id?{...s,personal:{...s.personal,...personal}}:s)})),
     deleteStudent: async (id) => {
