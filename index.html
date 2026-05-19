@@ -87,24 +87,6 @@
     @keyframes slideOut{from{transform:translateY(0);opacity:1}to{transform:translateY(40px);opacity:0}}
     .toast{position:fixed;bottom:24px;right:24px;background:#13131e;border:1px solid #4ade8044;color:#4ade80;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:9999;animation:slideIn .3s ease}
     .toast-exit{animation:slideOut .3s ease forwards}
-    /* ── MOBILE ── */
-    .sidebar{width:220px;background:#0e0e18;border-right:1px solid #1a1a28;display:flex;flex-direction:column;padding:24px 12px;flex-shrink:0;transition:transform .25s}
-    .main-content{flex:1;padding:28px 32px;overflow-y:auto;min-width:0}
-    .mobile-header{display:none;align-items:center;gap:12px;margin-bottom:20px}
-    .hamburger{background:transparent;border:1px solid #2a2a40;color:#dde0ee;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:18px;line-height:1}
-    .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:40}
-    @media(max-width:768px){
-      .sidebar{position:fixed;top:0;bottom:0;left:0;z-index:50;transform:translateX(-100%)}
-      .sidebar.open{transform:translateX(0)}
-      .sidebar-overlay.open{display:block}
-      .main-content{padding:16px}
-      .mobile-header{display:flex}
-      th,td{padding:8px 10px;font-size:12px}
-      .form-row-2{grid-template-columns:1fr}
-      .form-row-3{grid-template-columns:1fr}
-      .stat-card{padding:12px 14px}
-      .stat-value{font-size:26px}
-    }
   </style>
 </head>
 <body>
@@ -280,14 +262,17 @@ const Toast = ({msg,onDone}) => {
 };
 
 // ─── API REAL (conectada a backend) ───────────────────────────────────────────
-const API_URL = "https://dojang-backend-niwf.onrender.com";
+const API_URL = "https://dojang-backend-pmow.onrender.com";
 let _token = null;
 
 async function apiFetch(path, options={}) {
   const headers = {"Content-Type":"application/json"};
   if(_token) headers["Authorization"] = `Bearer ${_token}`;
   const res = await fetch(API_URL + path, {...options, headers});
-  return res.json();
+  const data = await res.json();
+  console.log("apiFetch", path, res.status, data);
+  if(!res.ok) throw new Error(`HTTP ${res.status}`);
+  return data;
 }
 
 function createApi(db, setDb) {
@@ -316,9 +301,7 @@ function createApi(db, setDb) {
         await apiFetch("/api/alumnos/registro-completo", {method:"POST", body: JSON.stringify({
           num_control: d.user || d.id,
           nombre: d.name,
-          fecha_nacimiento: d.dob || "2000-01-01",
-          id_cinta_actual: beltMap[d.belt] || 1,
-          responsable_nombre: d.parent || "Sin tutor",
+          fecha_nacimiento: d.dob || d.fecha_nacimiento || "2000-01-01",
           responsable_telefono: d.phone || "",
           responsable_direccion: d.personal?.address || "",
           username: d.user || d.id,
@@ -339,9 +322,12 @@ function createApi(db, setDb) {
       try {
         await apiFetch(`/api/alumnos/${id}`, {method:"PUT", body: JSON.stringify({
           nombre: d.name,
-          fecha_nacimiento: d.dob || "2000-01-01",
+          fecha_nacimiento: d.dob || d.fecha_nacimiento || "2000-01-01",
           fecha_ingreso: d.joined || todayStr(),
           id_cinta_actual: beltMap[d.belt] || 1,
+          responsable_nombre: d.parent || "",
+          responsable_telefono: d.phone || "",
+          responsable_direccion: d.personal?.address || "",
           email: d.email || "",
           direccion: d.personal?.address || "",
           tipo_sangre: d.personal?.blood || "",
@@ -1086,18 +1072,13 @@ const StudentForm = ({initial,onSave,onClose,api}) => {
     const newId = v.trim().length>=2 ? genStudentId(v, existingIds) : "";
     setF(p=>({...p, name:v, user: initial ? p.user : newId}));
   };
-  const submit = (e)=>{
-    e.preventDefault();
-    const age = f.dob ? Math.floor((new Date()-new Date(f.dob))/(365.25*24*60*60*1000)) : 0;
-    onSave({...f, id:f.user, age});
-    onClose();
-  };
+  const submit = (e)=>{e.preventDefault();onSave({...f,id:f.user});onClose();};
   return(
     <form onSubmit={submit}>
       <div style={{fontSize:11,color:"#c01212",textTransform:"uppercase",letterSpacing:.8,marginBottom:12}}>Datos del alumno</div>
       <div className="form-row form-row-2">
         <div><label className="tk-label">Nombre completo</label><input className="tk-input" required value={f.name} onChange={e=>handleName(e.target.value)}/></div>
-        <div><label className="tk-label">Fecha de nacimiento</label><input className="tk-input" type="date" required value={f.dob||""} onChange={e=>set("dob",e.target.value)}/></div>
+        <div><label className="tk-label">Fecha de nacimiento</label><input className="tk-input" type="date" required max={todayStr()} value={f.dob||""} onChange={e=>set("dob",e.target.value)}/></div>
       </div>
       <div className="form-row form-row-2">
         <div><label className="tk-label">Cinturón</label><select className="tk-input" value={f.belt} onChange={e=>set("belt",e.target.value)}>{BELT_LIST.map(b=><option key={b}>{b}</option>)}</select></div>
@@ -1377,7 +1358,7 @@ const AdminHome = ({api,setTab}) => {
 const AdminLayout = ({session,api,onLogout}) => {
   const [tab,setTab]=useState("home");
   const [toast,setToast]=useState(null);
-  const [sideOpen,setSideOpen]=useState(false);
+  const [sidebarOpen,setSidebarOpen]=useState(false);
   const showToast=(msg)=>setToast(msg);
   const nav=[
     {id:"home",label:"Dashboard",icon:"home"},
@@ -1387,11 +1368,19 @@ const AdminLayout = ({session,api,onLogout}) => {
     {id:"inventory",label:"Inventario",icon:"box"},
     {id:"profile",label:"Mi Perfil",icon:"settings"},
   ];
-  const goTab=(id)=>{setTab(id);setSideOpen(false);};
+  const handleNav=(id)=>{setTab(id);setSidebarOpen(false);};
   return(
-    <div style={{display:"flex",minHeight:"100vh"}}>
-      <div className={`sidebar-overlay ${sideOpen?"open":""}`} onClick={()=>setSideOpen(false)}/>
-      <div className={`sidebar ${sideOpen?"open":""}`}>
+    <div style={{display:"flex",minHeight:"100vh",position:"relative"}}>
+      {/* Overlay oscuro en móvil cuando sidebar está abierto */}
+      {sidebarOpen&&<div onClick={()=>setSidebarOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:40}}/>}
+      {/* Sidebar */}
+      <div style={{
+        width:220,background:"#0e0e18",borderRight:"1px solid #1a1a28",
+        display:"flex",flexDirection:"column",padding:"24px 12px",flexShrink:0,
+        position:"fixed",top:0,left:0,height:"100vh",zIndex:50,
+        transform:sidebarOpen?"translateX(0)":"translateX(-100%)",
+        transition:"transform 0.25s ease"
+      }} className="sidebar-desktop">
         <div style={{marginBottom:32,paddingLeft:8}}>
           <div style={{fontSize:24,marginBottom:4}}>🥋</div>
           <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,letterSpacing:2,color:"#f0f0fa"}}>DOJANG</div>
@@ -1399,7 +1388,7 @@ const AdminLayout = ({session,api,onLogout}) => {
         </div>
         <nav style={{flex:1}}>
           {nav.map(item=>(
-            <div key={item.id} className={`nav-item ${tab===item.id?"active":""}`} onClick={()=>goTab(item.id)}>
+            <div key={item.id} className={`nav-item ${tab===item.id?"active":""}`} onClick={()=>handleNav(item.id)}>
               <Icon name={item.icon} size={16}/>{item.label}
             </div>
           ))}
@@ -1412,17 +1401,21 @@ const AdminLayout = ({session,api,onLogout}) => {
           <div className="nav-item" onClick={onLogout}><Icon name="logout" size={16}/>Cerrar sesión</div>
         </div>
       </div>
-      <div className="main-content">
-        <div className="mobile-header">
-          <button className="hamburger" onClick={()=>setSideOpen(true)}>☰</button>
-          <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,letterSpacing:2,color:"#f0f0fa"}}>DOJANG</div>
+      {/* Contenido principal */}
+      <div style={{flex:1,overflowY:"auto",minWidth:0}}>
+        {/* Barra superior móvil con botón hamburguesa */}
+        <div style={{display:"flex",alignItems:"center",padding:"12px 16px",background:"#0e0e18",borderBottom:"1px solid #1a1a28",position:"sticky",top:0,zIndex:30}}>
+          <button onClick={()=>setSidebarOpen(!sidebarOpen)} style={{background:"none",border:"none",color:"#f0f0fa",fontSize:22,cursor:"pointer",marginRight:12,padding:"4px 8px",lineHeight:1}}>☰</button>
+          <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:15,letterSpacing:2,color:"#f0f0fa"}}>🥋 DOJANG</div>
         </div>
-        {tab==="home"&&<AdminHome api={api} setTab={setTab}/>}
-        {tab==="students"&&<AdminStudents api={api}/>}
-        {tab==="payments"&&<AdminPayments api={api}/>}
-        {tab==="events"&&<AdminEvents api={api}/>}
-        {tab==="inventory"&&<AdminInventory api={api} onToast={showToast}/>}
-        {tab==="profile"&&<AdminProfile api={api} onToast={showToast}/>}
+        <div style={{padding:"20px 16px"}}>
+          {tab==="home"&&<AdminHome api={api} setTab={setTab}/>}
+          {tab==="students"&&<AdminStudents api={api}/>}
+          {tab==="payments"&&<AdminPayments api={api}/>}
+          {tab==="events"&&<AdminEvents api={api}/>}
+          {tab==="inventory"&&<AdminInventory api={api} onToast={showToast}/>}
+          {tab==="profile"&&<AdminProfile api={api} onToast={showToast}/>}
+        </div>
       </div>
       {toast&&<Toast msg={toast} onDone={()=>setToast(null)}/>}
     </div>
