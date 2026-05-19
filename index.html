@@ -195,17 +195,8 @@ const INIT_DB = {
     {id:"s4",name:"Valentina Cruz",age:8,belt:"Blanco",parent:"Lucía Cruz",phone:"961-111-2222",email:"lucia.cruz@email.com",joined:"2025-09-01",active:true,user:"valentina_c",pass:"1234",
      personal:{address:"",blood:"",emergency:"Lucía Cruz",emergencyPhone:"961-111-2222",medNotes:""}},
   ],
-  payments:[
-    {id:"p1",sid:"s1",concept:"Dobok + Protectores completos",total:2800,paid:1400,installments:4,instPaid:2,instAmt:700,start:"2026-03-01",nextDue:"2026-05-01",status:"en_proceso",notes:""},
-    {id:"p2",sid:"s2",concept:"Dobok juvenil",total:800,paid:800,installments:1,instPaid:1,instAmt:800,start:"2026-01-10",nextDue:null,status:"liquidado",notes:""},
-    {id:"p3",sid:"s3",concept:"Casco + Petos para torneo",total:3500,paid:700,installments:5,instPaid:1,instAmt:700,start:"2026-04-01",nextDue:"2026-04-25",status:"en_proceso",notes:""},
-  ],
-  events:[
-    {id:"e1",title:"Examen de Ascenso — Cinturones Blancos",type:"ascenso",date:"2026-05-10",desc:"Examen trimestral para cinturón blanco a amarillo.",place:"Dojang Principal"},
-    {id:"e2",title:"Torneo Regional Chiapas 2026",type:"torneo",date:"2026-06-07",desc:"Competencia regional abierta a todas las categorías.",place:"Polideportivo Tuxtla"},
-    {id:"e3",title:"Examen de Ascenso — Cinturones Intermedios",type:"ascenso",date:"2026-05-24",desc:"Para alumnos de cinturón amarillo a azul.",place:"Dojang Principal"},
-    {id:"e4",title:"Copa Estatal Juvenil 2026",type:"torneo",date:"2026-07-19",desc:"Torneo para categoría infantil y juvenil.",place:"Centro Deportivo Municipal"},
-  ],
+  payments:[],
+  events:[],
   exams:[
     {id:"x1",sid:"s1",date:"2023-05-20",fromBelt:"Blanco",toBelt:"Amarillo",passed:true,notes:"Excelente técnica en patadas."},
     {id:"x2",sid:"s1",date:"2023-07-15",fromBelt:"Amarillo",toBelt:"Naranja",passed:true,notes:"Buen desempeño en sparring."},
@@ -302,6 +293,7 @@ function createApi(db, setDb) {
           num_control: d.user || d.id,
           nombre: d.name,
           fecha_nacimiento: d.dob || d.fecha_nacimiento || "2000-01-01",
+          responsable_nombre: d.parent || d.name,
           responsable_telefono: d.phone || "",
           responsable_direccion: d.personal?.address || "",
           username: d.user || d.id,
@@ -373,7 +365,14 @@ function createApi(db, setDb) {
     },
     // ── EVENTOS (solo local por ahora) ──
     getAdmin:()=>db.admin,
-    updateAdmin:(d)=>mutate(db=>({admin:{...db.admin,...d}})),
+    updateAdmin: async (d) => {
+      if (d.name && _token) {
+        try {
+          await apiFetch('/api/auth/perfil', {method:'PUT', body: JSON.stringify({nombre: d.name})});
+        } catch(e) {}
+      }
+      mutate(db=>({admin:{...db.admin,...d}}));
+    },
     getEvents:()=>db.events.slice().sort((a,b)=>a.date.localeCompare(b.date)),
     addEvent:(d)=>mutate(db=>({events:[...db.events,{...d,id:uid("e")}]})),
     updateEvent:(id,d)=>mutate(db=>({events:db.events.map(e=>e.id===id?{...e,...d}:e)})),
@@ -787,7 +786,7 @@ const EditStockModal = ({item,data,api,onToast,onClose}) => {
 // ─── LOGIN — FLUJO 3 PASOS ────────────────────────────────────────────────────
 // Lookup table: id numérico → {user, role, periodo}
 const ID_LOOKUP = {
-  "0001": {user:"admin", role:"admin", nombre:"Maestro Ramírez", periodo:"Abr-May 2026"},
+  "0001": {user:"admin", role:"admin", nombre:"Administrador", periodo:""},
 };
 
 const ROLE_LABELS = {admin:"Administrador", alumno:"Alumno", maestro:"Instructor", representante:"Representante"};
@@ -806,10 +805,7 @@ const LoginPage = ({onLogin, db}) => {
   const idRef  = useRef(null);
   const passRef = useRef(null);
 
-  // demos rápidos
-  const demos = [
-    {label:"Admin", id:"0001"},
-  ];
+  const demos = [];
 
   const triggerShake = () => {
     setShake(true);
@@ -1029,19 +1025,7 @@ const LoginPage = ({onLogin, db}) => {
         </div>
         )}
 
-        {/* Demo hints */}
-        <div style={{marginTop:20,padding:"13px 16px",background:"rgba(255,255,255,.02)",borderRadius:8,border:"1px solid #161626"}}>
-          <div style={{fontSize:10,color:"#333355",letterSpacing:1,textTransform:"uppercase",marginBottom:9}}>IDs de demo</div>
-          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            {demos.map(d=>(
-              <button key={d.id} className="tk-btn btn-ghost btn-sm" onClick={()=>{setIdVal(d.id);setErr("");setStep(1);}} style={{gap:6}}>
-                <span style={{color:"#555577",fontFamily:"'Bebas Neue',sans-serif",letterSpacing:.5}}>{d.id}</span>
-                <span>{d.label}</span>
-              </button>
-            ))}
-          </div>
-          <div style={{fontSize:10,color:"#2a2a40",marginTop:8}}>Contraseña: <span style={{color:"#333355"}}>admin123</span> (admin) · <span style={{color:"#333355"}}>1234</span> (alumnos)</div>
-        </div>
+
       </div>
 
       <style>{`
@@ -1395,7 +1379,7 @@ const AdminLayout = ({session,api,onLogout}) => {
         </nav>
         <div style={{borderTop:"1px solid #1a1a28",paddingTop:16}}>
           <div style={{paddingLeft:8,marginBottom:12}}>
-            <div style={{fontSize:12,color:"#dde0ee",fontWeight:500}}>{session.name}</div>
+            <div style={{fontSize:12,color:"#dde0ee",fontWeight:500}}>{session.displayName||session.name}</div>
             <div style={{fontSize:11,color:"#444466"}}>Administrador</div>
           </div>
           <div className="nav-item" onClick={onLogout}><Icon name="logout" size={16}/>Cerrar sesión</div>
@@ -1748,7 +1732,11 @@ function App() {
     if(result){
       await loadApiData(_token);
       // Asegurar que id esté en la sesión
-      const sessionWithId = {...result, id: result.id || user};
+      const sessionWithId = {...result, id: result.id || user, displayName: result.nombre || result.name || user};
+      // Update INIT_DB admin name with real nombre
+      if (result.nombre) {
+        setDb(prev => ({...prev, admin: {...prev.admin, name: result.nombre}}));
+      }
       setSession(sessionWithId);
     }
     setLoading(false);
