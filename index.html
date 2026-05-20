@@ -1357,7 +1357,7 @@ const AdminStudents = ({api}) => {
         </table>
       </div>
       {modal==="add"&&<Modal title="NUEVO ALUMNO" onClose={()=>setModal(null)} lg><StudentForm api={api} onSave={d=>api.addStudent(d)} onClose={()=>setModal(null)}/></Modal>}
-      {modal?.edit&&<Modal title="EDITAR ALUMNO" onClose={()=>setModal(null)} lg><StudentForm initial={modal.edit} onSave={d=>api.updateStudent(modal.edit.id,d)} onClose={()=>setModal(null)}/></Modal>}
+      {modal?.edit&&<Modal title="EDITAR ALUMNO" onClose={()=>setModal(null)} lg><StudentForm api={api} initial={modal.edit} onSave={d=>api.updateStudent(modal.edit.id,d)} onClose={()=>setModal(null)}/></Modal>}
       {modal?.del&&<ConfirmModal message="¿Eliminar este alumno? Esta acción no se puede deshacer." onConfirm={()=>api.deleteStudent(modal.del)} onClose={()=>setModal(null)}/>}
       {modal?.exams&&<StudentExamsModal student={modal.exams} api={api} onClose={()=>setModal(null)}/>}
     </div>
