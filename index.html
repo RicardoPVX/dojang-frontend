@@ -216,6 +216,7 @@ const INIT_DB = {
   torneos:[],
   clases:[],
   equipo:[],
+  instructores:[],
   inventory: buildInitInventory(),
 };
 
@@ -512,12 +513,38 @@ function createApi(db, setDb) {
       const s=db.students.find(s=>s.id===sid);
       return addMonths(xs.length>0?xs[0].date:(s?.joined||todayStr()),EXAM_MONTHS);
     },
+    // ── INSTRUCTORES ──
+    getInstructores: () => db.instructores,
+    addInstructor: async (d) => {
+      try {
+        const resp = await apiFetch("/api/instructores", {method:"POST", body: JSON.stringify(d)});
+        if(resp?.id_instructor){
+          mutate(db=>({instructores:[...db.instructores,{id:String(resp.id_instructor),nombre:d.nombre,cargo:d.cargo||"",grado_cinta:d.grado_cinta||"",email:d.email||"",telefono:d.telefono||"",username:d.username}]}));
+          return;
+        }
+      } catch(e){ console.error(e); }
+    },
+    updateInstructor: async (id,d) => {
+      try { await apiFetch(`/api/instructores/${id}`, {method:"PUT", body: JSON.stringify(d)}); } catch(e){ console.error(e); }
+      mutate(db=>({instructores:db.instructores.map(i=>i.id===id?{...i,...d}:i)}));
+    },
+    deleteInstructor: async (id) => {
+      try { await apiFetch(`/api/instructores/${id}`, {method:"DELETE"}); } catch(e){ console.error(e); }
+      mutate(db=>({instructores:db.instructores.filter(i=>i.id!==id), clases:db.clases.map(c=>c.instructorId===id?{...c,instructorId:"1",instructorNombre:""}:c)}));
+    },
+    updateMiPerfil: async (d) => {
+      try {
+        await apiFetch("/api/instructores/mi-perfil", {method:"PUT", body: JSON.stringify({nombre:d.name,cargo:d.cargo,grado_cinta:d.grado_cinta,email:d.email,telefono:d.phone})});
+        await apiFetch("/api/auth/perfil", {method:"PUT", body: JSON.stringify({nombre:d.name})});
+      } catch(e){ console.error(e); }
+      mutate(db=>({admin:{...db.admin,...d}}));
+    },
     // ── CLASES ──
     getClases: () => db.clases,
     addClass: async (d) => {
       try {
         const resp = await apiFetch("/api/clases", {method:"POST", body: JSON.stringify({
-          nombre: d.nombre, dia_semana: d.dia_semana, hora_inicio: d.hora_inicio, hora_fin: d.hora_fin
+          nombre: d.nombre, dia_semana: d.dia_semana, hora_inicio: d.hora_inicio, hora_fin: d.hora_fin, id_instructor: d.id_instructor||1
         })});
         if(resp?.id_clase){
           mutate(db=>({clases:[...db.clases,{id:String(resp.id_clase),nombre:d.nombre,dias:d.dia_semana,horaInicio:d.hora_inicio.slice(0,5),horaFin:d.hora_fin.slice(0,5)}]}));
@@ -528,7 +555,7 @@ function createApi(db, setDb) {
     updateClass: async (id,d) => {
       try {
         await apiFetch(`/api/clases/${id}`, {method:"PUT", body: JSON.stringify({
-          nombre: d.nombre, dia_semana: d.dia_semana, hora_inicio: d.hora_inicio, hora_fin: d.hora_fin
+          nombre: d.nombre, dia_semana: d.dia_semana, hora_inicio: d.hora_inicio, hora_fin: d.hora_fin, id_instructor: d.id_instructor||1
         })});
       } catch(e){ console.error(e); }
       mutate(db=>({clases:db.clases.map(c=>c.id===id?{...c,nombre:d.nombre,dias:d.dia_semana,horaInicio:d.hora_inicio.slice(0,5),horaFin:d.hora_fin.slice(0,5)}:c)}));
@@ -839,57 +866,112 @@ const StudentExamsModal = ({student,api,onClose}) => {
 };
 
 // ─── PERFIL ADMIN ─────────────────────────────────────────────────────────────
-const AdminProfile = ({api,onToast}) => {
+// ─── INSTRUCTOR FORM ─────────────────────────────────────────────────────────
+const InstructorForm = ({onSave,onClose}) => {
+  const [f,setF]=useState({nombre:"",cargo:"",grado_cinta:"Blanco",email:"",telefono:"",username:"",password:""});
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  const submit=(e)=>{e.preventDefault();onSave(f);onClose();};
+  return(
+    <form onSubmit={submit}>
+      <div className="form-row form-row-2">
+        <div><label className="tk-label">Nombre completo</label><input className="tk-input" required value={f.nombre} onChange={e=>set("nombre",e.target.value)}/></div>
+        <div><label className="tk-label">Cargo</label><input className="tk-input" value={f.cargo} onChange={e=>set("cargo",e.target.value)} placeholder="Ej. Instructor Auxiliar"/></div>
+      </div>
+      <div className="form-row form-row-2">
+        <div><label className="tk-label">Grado de cinta</label><select className="tk-input" value={f.grado_cinta} onChange={e=>set("grado_cinta",e.target.value)}>{BELT_LIST.map(b=><option key={b}>{b}</option>)}</select></div>
+        <div><label className="tk-label">Teléfono</label><input className="tk-input" value={f.telefono} onChange={e=>set("telefono",e.target.value)}/></div>
+      </div>
+      <div className="form-row"><div><label className="tk-label">Correo electrónico</label><input className="tk-input" type="email" value={f.email} onChange={e=>set("email",e.target.value)}/></div></div>
+      <div style={{borderTop:"1px solid #1e1e2e",paddingTop:14,marginTop:8}}>
+        <div style={{fontSize:11,color:"#555577",letterSpacing:.8,textTransform:"uppercase",marginBottom:10}}>Acceso al sistema</div>
+        <div className="form-row form-row-2">
+          <div><label className="tk-label">Usuario</label><input className="tk-input" required value={f.username} onChange={e=>set("username",e.target.value)}/></div>
+          <div><label className="tk-label">Contraseña</label><input className="tk-input" type="password" required value={f.password} onChange={e=>set("password",e.target.value)}/></div>
+        </div>
+      </div>
+      <div className="form-actions">
+        <button type="button" className="tk-btn btn-ghost" onClick={onClose}>Cancelar</button>
+        <button type="submit" className="tk-btn btn-red">Registrar maestro</button>
+      </div>
+    </form>
+  );
+};
+
+const AdminProfile = ({api,onToast,session}) => {
   const admin = api.getAdmin();
   const [f,setF] = useState({...admin});
   const [changed,setChanged] = useState(false);
+  const [modal,setModal] = useState(null);
   const set = (k,v)=>{setF(p=>({...p,[k]:v}));setChanged(true);};
-  const save = ()=>{api.updateAdmin(f);setChanged(false);onToast("Perfil actualizado correctamente");};
+  const save = async ()=>{
+    await api.updateMiPerfil(f);
+    setChanged(false);
+    onToast("Perfil actualizado correctamente");
+  };
   const [showPass,setShowPass] = useState(false);
+  const instructores = api.getInstructores();
   return(
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24}}>
-        <div className="section-title">MI PERFIL — ADMINISTRADOR</div>
+        <div className="section-title">MI PERFIL</div>
         {changed&&<button className="tk-btn btn-red" onClick={save}><Icon name="check" size={14}/>Guardar cambios</button>}
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
         <div className="card" style={{padding:24}}>
           <div style={{fontSize:11,color:"#555577",textTransform:"uppercase",letterSpacing:.8,marginBottom:16}}>Datos personales</div>
           <div className="form-row">
-            <div><label className="tk-label">Nombre completo</label><input className="tk-input" value={f.name} onChange={e=>set("name",e.target.value)}/></div>
-            <div><label className="tk-label">Teléfono</label><input className="tk-input" value={f.phone} onChange={e=>set("phone",e.target.value)}/></div>
-            <div><label className="tk-label">Correo electrónico</label><input className="tk-input" type="email" value={f.email} onChange={e=>set("email",e.target.value)}/></div>
+            <div><label className="tk-label">Nombre completo</label><input className="tk-input" value={f.name||""} onChange={e=>set("name",e.target.value)}/></div>
+            <div><label className="tk-label">Cargo</label><input className="tk-input" value={f.cargo||""} onChange={e=>set("cargo",e.target.value)} placeholder="Ej. Maestro Principal"/></div>
+            <div><label className="tk-label">Grado de cinta</label><select className="tk-input" value={f.grado_cinta||"Negro"} onChange={e=>set("grado_cinta",e.target.value)}>{BELT_LIST.map(b=><option key={b}>{b}</option>)}</select></div>
           </div>
         </div>
         <div className="card" style={{padding:24}}>
-          <div style={{fontSize:11,color:"#555577",textTransform:"uppercase",letterSpacing:.8,marginBottom:16}}>Datos del Dojang</div>
+          <div style={{fontSize:11,color:"#555577",textTransform:"uppercase",letterSpacing:.8,marginBottom:16}}>Contacto</div>
           <div className="form-row">
-            <div><label className="tk-label">Nombre del Dojang</label><input className="tk-input" value={f.dojangName} onChange={e=>set("dojangName",e.target.value)}/></div>
-            <div><label className="tk-label">Dirección</label><input className="tk-input" value={f.address} onChange={e=>set("address",e.target.value)}/></div>
+            <div><label className="tk-label">Teléfono</label><input className="tk-input" value={f.phone||""} onChange={e=>set("phone",e.target.value)}/></div>
+            <div><label className="tk-label">Correo electrónico</label><input className="tk-input" type="email" value={f.email||""} onChange={e=>set("email",e.target.value)}/></div>
+            <div><label className="tk-label">Nombre del Dojang</label><input className="tk-input" value={f.dojangName||""} onChange={e=>set("dojangName",e.target.value)}/></div>
           </div>
         </div>
       </div>
       <div className="card" style={{padding:24,marginBottom:16}}>
         <div style={{fontSize:11,color:"#555577",textTransform:"uppercase",letterSpacing:.8,marginBottom:16}}>Credenciales de acceso</div>
         <div className="form-row form-row-2">
-          <div><label className="tk-label">Usuario</label><input className="tk-input" value={f.user} onChange={e=>set("user",e.target.value)}/></div>
+          <div><label className="tk-label">Usuario</label><input className="tk-input" readOnly style={{opacity:.6}} value={f.user||""}/></div>
           <div>
-            <label className="tk-label">Contraseña</label>
+            <label className="tk-label">Contraseña actual</label>
             <div style={{position:"relative"}}>
-              <input className="tk-input" type={showPass?"text":"password"} value={f.pass} onChange={e=>set("pass",e.target.value)} style={{paddingRight:80}}/>
-              <button type="button" onClick={()=>setShowPass(p=>!p)} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:"#666688",cursor:"pointer",fontSize:11,fontFamily:"'Exo 2',sans-serif"}}>{showPass?"Ocultar":"Mostrar"}</button>
+              <input className="tk-input" type={showPass?"text":"password"} value={f.pass||""} onChange={e=>set("pass",e.target.value)} style={{paddingRight:80}}/>
+              <button type="button" onClick={()=>setShowPass(p=>!p)} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:"#666688",cursor:"pointer",fontSize:11}}>{showPass?"Ocultar":"Mostrar"}</button>
             </div>
           </div>
         </div>
-        <div style={{marginTop:10,padding:"10px 14px",background:"rgba(192,18,18,.08)",borderRadius:8,border:"1px solid rgba(192,18,18,.2)",fontSize:12,color:"#9090b0"}}>
-          ⚠️ Cambiar usuario o contraseña cerrará tu sesión automáticamente al guardar.
-        </div>
       </div>
-      {changed&&(
-        <div style={{display:"flex",justifyContent:"flex-end"}}>
-          <button className="tk-btn btn-red" onClick={save}><Icon name="check" size={14}/>Guardar todos los cambios</button>
-        </div>
-      )}
+      {changed&&<div style={{display:"flex",justifyContent:"flex-end",marginBottom:24}}>
+        <button className="tk-btn btn-red" onClick={save}><Icon name="check" size={14}/>Guardar cambios</button>
+      </div>}
+      {/* Maestros */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <div className="section-title" style={{fontSize:16}}>MAESTROS REGISTRADOS</div>
+        <button className="tk-btn btn-red btn-sm" onClick={()=>setModal("add")}><Icon name="plus" size={13}/>Nuevo maestro</button>
+      </div>
+      <div style={{display:"grid",gap:10}}>
+        {instructores.map(i=>(
+          <div key={i.id} className="card" style={{padding:16,display:"flex",alignItems:"center",gap:14}}>
+            <div style={{width:42,height:42,borderRadius:"50%",background:"rgba(192,18,18,.12)",border:"1px solid rgba(192,18,18,.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>🥋</div>
+            <div style={{flex:1}}>
+              <div style={{color:"#f0f0fa",fontWeight:600,fontSize:14}}>{i.nombre}</div>
+              <div style={{color:"#9090b0",fontSize:12}}>{i.cargo||"Instructor"} · Cinta {i.grado_cinta||"—"} · @{i.username||"—"}</div>
+              {i.email&&<div style={{color:"#666688",fontSize:11}}>{i.email}</div>}
+            </div>
+            <div style={{display:"flex",gap:6}}>
+              <button className="tk-btn btn-danger btn-sm" onClick={()=>setModal({del:i.id})} disabled={i.username===f.user}><Icon name="trash" size={12}/></button>
+            </div>
+          </div>
+        ))}
+      </div>
+      {modal==="add"&&<Modal title="NUEVO MAESTRO" onClose={()=>setModal(null)} lg><InstructorForm onSave={d=>api.addInstructor(d)} onClose={()=>setModal(null)}/></Modal>}
+      {modal?.del&&<ConfirmModal message="¿Eliminar este maestro? Las clases asignadas pasarán al maestro principal." onConfirm={()=>api.deleteInstructor(modal.del)} onClose={()=>setModal(null)}/>}
     </div>
   );
 };
@@ -1634,15 +1716,18 @@ const EventForm = ({initial,onSave,onClose}) => {
   );
 };
 // ─── CLASE FORM ──────────────────────────────────────────────────────────────
-const ClaseForm = ({initial,onSave,onClose}) => {
-  const empty={nombre:"",dia_semana:"",hora_inicio:"",hora_fin:""};
+const ClaseForm = ({initial,onSave,onClose,instructores=[]}) => {
+  const empty={nombre:"",dia_semana:"",hora_inicio:"",hora_fin:"",id_instructor:"1"};
   const [f,setF]=useState(initial||empty);
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
   const submit=(e)=>{e.preventDefault();onSave(f);onClose();};
   return(
     <form onSubmit={submit}>
-      <div className="form-row">
+      <div className="form-row form-row-2">
         <div><label className="tk-label">Nombre del horario</label><input className="tk-input" required value={f.nombre} onChange={e=>set("nombre",e.target.value)} placeholder="Ej. Horario A"/></div>
+        <div><label className="tk-label">Maestro</label><select className="tk-input" value={f.id_instructor||"1"} onChange={e=>set("id_instructor",e.target.value)}>
+          {instructores.map(i=><option key={i.id} value={i.id}>{i.nombre} — {i.cargo||"Instructor"}</option>)}
+        </select></div>
       </div>
       <div className="form-row">
         <div><label className="tk-label">Días</label><input className="tk-input" required value={f.dia_semana} onChange={e=>set("dia_semana",e.target.value)} placeholder="Ej. Martes, Miércoles, Jueves"/></div>
@@ -1702,8 +1787,8 @@ const AdminClases = ({api}) => {
           })}
         </div>
       }
-      {modal==="add"&&<Modal title="NUEVA CLASE" onClose={()=>setModal(null)}><ClaseForm onSave={d=>api.addClass(d)} onClose={()=>setModal(null)}/></Modal>}
-      {modal?.edit&&<Modal title="EDITAR CLASE" onClose={()=>setModal(null)}><ClaseForm initial={{nombre:modal.edit.nombre,dia_semana:modal.edit.dias,hora_inicio:modal.edit.horaInicio,hora_fin:modal.edit.horaFin}} onSave={d=>api.updateClass(modal.edit.id,d)} onClose={()=>setModal(null)}/></Modal>}
+      {modal==="add"&&<Modal title="NUEVA CLASE" onClose={()=>setModal(null)}><ClaseForm instructores={api.getInstructores()} onSave={d=>api.addClass(d)} onClose={()=>setModal(null)}/></Modal>}
+      {modal?.edit&&<Modal title="EDITAR CLASE" onClose={()=>setModal(null)}><ClaseForm instructores={api.getInstructores()} initial={{nombre:modal.edit.nombre,dia_semana:modal.edit.dias,hora_inicio:modal.edit.horaInicio,hora_fin:modal.edit.horaFin,id_instructor:modal.edit.instructorId||"1"}} onSave={d=>api.updateClass(modal.edit.id,d)} onClose={()=>setModal(null)}/></Modal>}
       {modal?.del&&<ConfirmModal message="¿Eliminar esta clase? Los alumnos serán desinscritos." onConfirm={()=>api.deleteClass(modal.del)} onClose={()=>setModal(null)}/>}
     </div>
   );
@@ -1956,7 +2041,7 @@ const AdminLayout = ({session,api,onLogout}) => {
           {tab==="events"&&<AdminEvents api={api}/>}
           {tab==="clases"&&<AdminClases api={api}/>}
         {tab==="inventory"&&<AdminInventory api={api} onToast={showToast}/>}
-          {tab==="profile"&&<AdminProfile api={api} onToast={showToast}/>}
+          {tab==="profile"&&<AdminProfile api={api} onToast={showToast} session={session}/>}
         </div>
       </div>
       {toast&&<Toast msg={toast} onDone={()=>setToast(null)}/>}
@@ -2220,18 +2305,19 @@ function App() {
     }).catch(()=>{}).finally(()=>setLoading(false));
   },[]);
 
-  const loadApiData = async (tok) => {
+  const loadApiData = async (tok, tok_id_instructor=null) => {
     try {
       const h = {"Content-Type":"application/json","Authorization":`Bearer ${tok}`};
       const fetchJ = (url) => fetch(API_URL+url,{headers:h}).then(r=>r.json());
       const safeGet = async (url) => { try { return await fetchJ(url); } catch(e) { return []; } };
-      const [students, payments, exams, torneos, clases, equipo] = await Promise.all([
+      const [students, payments, exams, torneos, clases, equipo, instructores] = await Promise.all([
         safeGet("/api/alumnos"),
         safeGet("/api/pagos"),
         safeGet("/api/examenes"),
         safeGet("/api/torneos"),
         safeGet("/api/clases"),
         safeGet("/api/equipo"),
+        safeGet("/api/instructores"),
       ]);
       const mappedStudents = Array.isArray(students) ? students.map(a => ({
         id: a.num_control, name: a.nombre,
@@ -2299,6 +2385,18 @@ function App() {
         stock_minimo: parseInt(e.stock_minimo)||2,
       })) : [];
 
+      const mappedInstructores = Array.isArray(instructores) ? instructores.map(i=>({
+        id: String(i.id_instructor),
+        nombre: i.nombre||"",
+        cargo: i.cargo||"",
+        grado_cinta: i.grado_cinta||"",
+        email: i.email||"",
+        telefono: i.telefono||"",
+        username: i.username||"",
+      })) : [];
+
+      // Set admin instructor data in db.admin
+      const myInstr = mappedInstructores.find(i=>i.id===String(tok_id_instructor));
       setDb(prev=>({...prev,
         students: mappedStudents.length>0?mappedStudents:prev.students,
         payments: mappedPayments.length>0?mappedPayments:prev.payments,
@@ -2306,6 +2404,8 @@ function App() {
         torneos: mappedTorneos.length>0?mappedTorneos:prev.torneos,
         clases: mappedClases.length>0?mappedClases:prev.clases,
         equipo: mappedEquipo.length>0?mappedEquipo:prev.equipo,
+        instructores: mappedInstructores.length>0?mappedInstructores:prev.instructores,
+        admin: myInstr ? {...prev.admin, cargo:myInstr.cargo, grado_cinta:myInstr.grado_cinta, phone:myInstr.telefono||prev.admin.phone, email:myInstr.email||prev.admin.email} : prev.admin,
       }));
     } catch(e){ console.log("Usando datos locales:",e); }
   };
@@ -2329,7 +2429,7 @@ function App() {
     }
     const result=await api.login(user,pass);
     if(result){
-      await loadApiData(_token);
+      await loadApiData(_token, result.id_instructor||null);
       // Asegurar que id esté en la sesión
       const sessionWithId = {...result, id: result.id || user, displayName: result.nombre || result.name || user};
       // Update INIT_DB admin name with real nombre
