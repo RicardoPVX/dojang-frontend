@@ -1219,7 +1219,7 @@ const MensualidadesPanel = ({api}) => {
       </div>
       <div className="card" style={{padding:0,overflow:"hidden"}}>
         <table>
-          <thead><tr><th>Alumno</th><th>Cinturón</th><th>Monto</th><th>Fecha de pago</th><th style={{textAlign:"center"}}>Estado</th></tr></thead>
+          <thead><tr><th>Alumno</th><th>Cinturón</th><th>Monto</th><th style={{textAlign:"center"}}>Estado</th></tr></thead>
           <tbody>
             {students.length===0&&<tr><td colSpan={4}><div className="empty-state"><div className="empty-icon">👥</div><div>Sin alumnos registrados</div></div></td></tr>}
             {students.map(s=>{
@@ -1230,23 +1230,10 @@ const MensualidadesPanel = ({api}) => {
                   <td style={{color:"#dde0ee",fontWeight:500}}>{s.name}</td>
                   <td><BeltBadge belt={s.belt}/></td>
                   <td style={{color:"#9090b0",fontWeight:600}}>$500</td>
-                  <td>
-                    {pagado
-                      ? <span style={{color:"#9090b0",fontSize:12}}>{fmtDate(pago.start)}</span>
-                      : <input type="date" className="tk-input" defaultValue={todayStr()}
-                          id={`fecha-${s.id}`}
-                          style={{fontSize:12,padding:"4px 8px",width:130}}/>
-                    }
-                  </td>
                   <td style={{textAlign:"center"}}>
                     <label style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer"}}>
                       <input type="checkbox" checked={pagado}
-                        onChange={e=>{
-                          const fecha = !pagado
-                            ? (document.getElementById(`fecha-${s.id}`)?.value || todayStr())
-                            : null;
-                          api.pagarMensualidad(s,e.target.checked,mes,anio,fecha);
-                        }}
+                        onChange={e=>api.pagarMensualidad(s,e.target.checked,mes,anio,todayStr())}
                         style={{width:18,height:18,cursor:"pointer",accentColor:"#c01212"}}/>
                       <span style={{color:pagado?"#4ade80":"#f87171",fontSize:13,fontWeight:600,minWidth:70}}>
                         {pagado?"✓ Pagado":"Pendiente"}
