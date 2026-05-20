@@ -2119,15 +2119,6 @@ function App() {
         nombre_examen: x.nombre_examen||"",
         sede: x.sede||""
       })) : [];
-      const mappedEvents = Array.isArray(eventos) ? eventos.map(e=>({
-        id: String(e.id_evento),
-        title: e.titulo,
-        type: e.tipo||"especial",
-        date: e.fecha ? e.fecha.split('T')[0] : todayStr(),
-        place: e.lugar||"",
-        desc: e.descripcion||""
-      })) : [];
-
       const mappedTorneos = Array.isArray(torneos) ? torneos.map(t=>({
         id: String(t.id_torneo),
         nombre: t.nombre_torneo||"",
