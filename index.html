@@ -415,9 +415,30 @@ function createApi(db, setDb) {
       mutate(db=>({admin:{...db.admin,...d}}));
     },
     getEvents:()=>db.events.slice().sort((a,b)=>a.date.localeCompare(b.date)),
-    addEvent:(d)=>mutate(db=>({events:[...db.events,{...d,id:uid("e")}]})),
-    updateEvent:(id,d)=>mutate(db=>({events:db.events.map(e=>e.id===id?{...e,...d}:e)})),
-    deleteEvent:(id)=>mutate(db=>({events:db.events.filter(e=>e.id!==id)})),
+    addEvent: async (d) => {
+      try {
+        const resp = await apiFetch("/api/eventos", {method:"POST", body: JSON.stringify({
+          titulo: d.title, tipo: d.type, fecha: d.date, lugar: d.place, descripcion: d.desc
+        })});
+        if(resp?.id_evento) {
+          mutate(db=>({events:[...db.events,{...d,id:String(resp.id_evento)}]}));
+          return;
+        }
+      } catch(e){ console.error(e); }
+      mutate(db=>({events:[...db.events,{...d,id:uid("e")}]}));
+    },
+    updateEvent: async (id,d) => {
+      try {
+        await apiFetch(`/api/eventos/${id}`, {method:"PUT", body: JSON.stringify({
+          titulo: d.title, tipo: d.type, fecha: d.date, lugar: d.place, descripcion: d.desc
+        })});
+      } catch(e){ console.error(e); }
+      mutate(db=>({events:db.events.map(e=>e.id===id?{...e,...d}:e)}));
+    },
+    deleteEvent: async (id) => {
+      try { await apiFetch(`/api/eventos/${id}`, {method:"DELETE"}); } catch(e){ console.error(e); }
+      mutate(db=>({events:db.events.filter(e=>e.id!==id)}));
+    },
     // ── EXÁMENES (API real) ──
     getAllExams: async () => {
       try {
@@ -434,19 +455,42 @@ function createApi(db, setDb) {
     },
     getStudentExams:(sid)=>db.exams.filter(x=>x.sid===sid).slice().sort((a,b)=>a.date.localeCompare(b.date)),
     addExam: async (d) => {
+      const beltMap={"Blanco":1,"Amarillo":2,"Naranja":3,"Verde":4,"Azul":5,"Morado":6,"Rojo":7,"Negro":8};
       try {
-        await apiFetch("/api/examenes", {method:"POST", body: JSON.stringify({
+        const resp = await apiFetch("/api/examenes", {method:"POST", body: JSON.stringify({
           fecha: d.date,
           observaciones: d.notes,
-          resultado: d.result === "pass" ? "Aprobado" : d.result === "fail" ? "Reprobado" : "Pendiente",
+          resultado: d.resultado || (d.passed?"Aprobado":"Pendiente"),
           num_control_alumno: d.sid,
-          id_cinta_aspirada: 1
+          id_cinta_aspirada: beltMap[d.toBelt]||1,
+          nombre_examen: d.nombre_examen||null,
+          sede: d.sede||null
         })});
-      } catch(e) {}
+        if(resp?.id_examen) {
+          mutate(db=>({exams:[...db.exams,{...d,id:String(resp.id_examen)}]}));
+          return;
+        }
+      } catch(e){ console.error(e); }
       mutate(db=>({exams:[...db.exams,{...d,id:uid("x")}]}));
     },
-    updateExam:(id,d)=>mutate(db=>({exams:db.exams.map(x=>x.id===id?{...x,...d}:x)})),
-    deleteExam:(id)=>mutate(db=>({exams:db.exams.filter(x=>x.id!==id)})),
+    updateExam: async (id,d) => {
+      const beltMap={"Blanco":1,"Amarillo":2,"Naranja":3,"Verde":4,"Azul":5,"Morado":6,"Rojo":7,"Negro":8};
+      try {
+        await apiFetch(`/api/examenes/${id}`, {method:"PUT", body: JSON.stringify({
+          fecha: d.date,
+          observaciones: d.notes,
+          resultado: d.resultado || (d.passed?"Aprobado":"Pendiente"),
+          id_cinta_aspirada: beltMap[d.toBelt]||null,
+          nombre_examen: d.nombre_examen||null,
+          sede: d.sede||null
+        })});
+      } catch(e){ console.error(e); }
+      mutate(db=>({exams:db.exams.map(x=>x.id===id?{...x,...d}:x)}));
+    },
+    deleteExam: async (id) => {
+      try { await apiFetch(`/api/examenes/${id}`, {method:"DELETE"}); } catch(e){ console.error(e); }
+      mutate(db=>({exams:db.exams.filter(x=>x.id!==id)}));
+    },
     getNextExamDate:(sid)=>{
       const xs=db.exams.filter(x=>x.sid===sid).slice().sort((a,b)=>b.date.localeCompare(a.date));
       const s=db.students.find(s=>s.id===sid);
@@ -591,19 +635,27 @@ const ExamTimeline = ({exams}) => {
 
 // ─── EXAM FORM ────────────────────────────────────────────────────────────────
 const ExamForm = ({initial,sid,onSave,onClose}) => {
-  const empty = {sid:sid||"",date:todayStr(),fromBelt:"Blanco",toBelt:"Amarillo",passed:true,notes:""};
-  const [f,setF] = useState(initial?{...initial}:empty);
+  const empty = {sid:sid||"",date:todayStr(),fromBelt:"Blanco",toBelt:"Amarillo",resultado:"Pendiente",notes:"",nombre_examen:"",sede:""};
+  const [f,setF] = useState(initial?{...initial, resultado:initial.resultado||(initial.passed?"Aprobado":"Pendiente")}:empty);
   const set = (k,v)=>setF(p=>({...p,[k]:v}));
-  const submit = (e)=>{e.preventDefault();onSave(f);onClose();};
+  const submit = (e)=>{e.preventDefault();onSave({...f,passed:f.resultado==="Aprobado"});onClose();};
   return(
     <form onSubmit={submit}>
+      <div className="form-row form-row-2">
+        <div><label className="tk-label">Nombre del examen</label><input className="tk-input" value={f.nombre_examen} onChange={e=>set("nombre_examen",e.target.value)} placeholder="Ej. Examen Cinturones Blancos"/></div>
+        <div><label className="tk-label">Sede</label><input className="tk-input" value={f.sede} onChange={e=>set("sede",e.target.value)} placeholder="Ej. Dojang Principal"/></div>
+      </div>
       <div className="form-row form-row-2">
         <div><label className="tk-label">Cinturón anterior</label><select className="tk-input" value={f.fromBelt} onChange={e=>set("fromBelt",e.target.value)}>{BELT_LIST.map(b=><option key={b}>{b}</option>)}</select></div>
         <div><label className="tk-label">Cinturón objetivo</label><select className="tk-input" value={f.toBelt} onChange={e=>set("toBelt",e.target.value)}>{BELT_LIST.map(b=><option key={b}>{b}</option>)}</select></div>
       </div>
       <div className="form-row form-row-2">
         <div><label className="tk-label">Fecha del examen</label><input className="tk-input" type="date" required value={f.date} onChange={e=>set("date",e.target.value)}/></div>
-        <div><label className="tk-label">Resultado</label><select className="tk-input" value={f.passed?"si":"no"} onChange={e=>set("passed",e.target.value==="si")}><option value="si">✓ Aprobado</option><option value="no">✗ No aprobado</option></select></div>
+        <div><label className="tk-label">Resultado</label><select className="tk-input" value={f.resultado} onChange={e=>set("resultado",e.target.value)}>
+          <option value="Pendiente">⏳ Pendiente</option>
+          <option value="Aprobado">✓ Aprobado</option>
+          <option value="Reprobado">✗ No aprobado</option>
+        </select></div>
       </div>
       <div className="form-row"><div><label className="tk-label">Observaciones del maestro</label><textarea className="tk-input" rows={2} value={f.notes} onChange={e=>set("notes",e.target.value)} placeholder="Ej. Excelente poomsae, mejorar velocidad..."/></div></div>
       <div className="form-actions">
@@ -1466,45 +1518,37 @@ const EventForm = ({initial,onSave,onClose}) => {
 };
 const AdminEvents = ({api}) => {
   const [modal,setModal]=useState(null);
-  const [tab,setTab]=useState("eventos");
   const events=api.getEvents();
-  const TABS=[["eventos","📅 Eventos especiales"],["examenes","🎓 Exámenes"],["torneos","🏆 Torneos"]];
   return(
     <div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-        <div className="section-title">EVENTOS Y EXÁMENES</div>
-        {tab==="eventos"&&<button className="tk-btn btn-red" onClick={()=>setModal("add")}><Icon name="plus" size={14}/>Nuevo evento</button>}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+        <div className="section-title">EVENTOS Y COMPETENCIAS</div>
+        <button className="tk-btn btn-red" onClick={()=>setModal("add")}><Icon name="plus" size={14}/>Nuevo evento</button>
       </div>
-      <div style={{display:"flex",gap:4,marginBottom:20,borderBottom:"1px solid #1a1a28"}}>
-        {TABS.map(([id,label])=>(
-          <button key={id} onClick={()=>setTab(id)} style={{padding:"8px 18px",background:"none",border:"none",cursor:"pointer",fontSize:13,fontWeight:600,color:tab===id?"#c01212":"#666688",borderBottom:tab===id?"2px solid #c01212":"2px solid transparent",marginBottom:-1}}>{label}</button>
-        ))}
-      </div>
-      {tab==="eventos"&&<>
-        <div style={{display:"grid",gap:12,gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))"}}>
-          {events.length===0&&<div className="card empty-state" style={{padding:40,gridColumn:"1/-1"}}><div className="empty-icon">📅</div><div>Sin eventos</div></div>}
-          {events.map(ev=>{
-            const et=EVENT_TYPE[ev.type]||EVENT_TYPE.especial;
-            return(
-              <div key={ev.id} className="card" style={{padding:18,borderLeft:`3px solid ${et.color}`}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
-                  <EventTypeBadge type={ev.type}/>
-                  <div style={{display:"flex",gap:6}}><button className="tk-btn btn-ghost btn-sm" onClick={()=>setModal({edit:ev})}><Icon name="edit" size={13}/></button><button className="tk-btn btn-danger btn-sm" onClick={()=>setModal({del:ev.id})}><Icon name="trash" size={13}/></button></div>
+      <div style={{display:"grid",gap:12,gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))"}}>
+        {events.length===0&&<div className="card empty-state" style={{padding:40,gridColumn:"1/-1"}}><div className="empty-icon">📅</div><div>Sin eventos</div></div>}
+        {events.map(ev=>{
+          const et=EVENT_TYPE[ev.type]||EVENT_TYPE.especial;
+          return(
+            <div key={ev.id} className="card" style={{padding:18,borderLeft:`3px solid ${et.color}`}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+                <EventTypeBadge type={ev.type}/>
+                <div style={{display:"flex",gap:6}}>
+                  <button className="tk-btn btn-ghost btn-sm" onClick={()=>setModal({edit:ev})}><Icon name="edit" size={13}/></button>
+                  <button className="tk-btn btn-danger btn-sm" onClick={()=>setModal({del:ev.id})}><Icon name="trash" size={13}/></button>
                 </div>
-                <div style={{fontWeight:600,color:"#dde0ee",marginBottom:6,fontSize:14,lineHeight:1.4}}>{ev.title}</div>
-                <div style={{color:"#9090b0",fontSize:12,marginBottom:4}}><span style={{color:et.color,marginRight:6}}>●</span>{fmtDate(ev.date)}</div>
-                {ev.place&&<div style={{color:"#666688",fontSize:11,marginBottom:8}}>📍 {ev.place}</div>}
-                {ev.desc&&<div style={{color:"#7070a0",fontSize:12,lineHeight:1.5,borderTop:"1px solid #1e1e2e",paddingTop:8,marginTop:8}}>{ev.desc}</div>}
               </div>
-            );
-          })}
-        </div>
-        {modal==="add"&&<Modal title="NUEVO EVENTO" onClose={()=>setModal(null)}><EventForm onSave={d=>api.addEvent(d)} onClose={()=>setModal(null)}/></Modal>}
-        {modal?.edit&&<Modal title="EDITAR EVENTO" onClose={()=>setModal(null)}><EventForm initial={modal.edit} onSave={d=>api.updateEvent(modal.edit.id,d)} onClose={()=>setModal(null)}/></Modal>}
-        {modal?.del&&<ConfirmModal message="¿Eliminar este evento?" onConfirm={()=>api.deleteEvent(modal.del)} onClose={()=>setModal(null)}/>}
-      </>}
-      {tab==="examenes"&&<AdminExamenesGlobal api={api}/>}
-      {tab==="torneos"&&<AdminTorneosPanel api={api}/>}
+              <div style={{fontWeight:600,color:"#dde0ee",marginBottom:6,fontSize:14,lineHeight:1.4}}>{ev.title}</div>
+              <div style={{color:"#9090b0",fontSize:12,marginBottom:4}}><span style={{color:et.color,marginRight:6}}>●</span>{fmtDate(ev.date)}</div>
+              {ev.place&&<div style={{color:"#666688",fontSize:11,marginBottom:8}}>📍 {ev.place}</div>}
+              {ev.desc&&<div style={{color:"#7070a0",fontSize:12,lineHeight:1.5,borderTop:"1px solid #1e1e2e",paddingTop:8,marginTop:8}}>{ev.desc}</div>}
+            </div>
+          );
+        })}
+      </div>
+      {modal==="add"&&<Modal title="NUEVO EVENTO" onClose={()=>setModal(null)}><EventForm onSave={d=>api.addEvent(d)} onClose={()=>setModal(null)}/></Modal>}
+      {modal?.edit&&<Modal title="EDITAR EVENTO" onClose={()=>setModal(null)}><EventForm initial={modal.edit} onSave={d=>api.updateEvent(modal.edit.id,d)} onClose={()=>setModal(null)}/></Modal>}
+      {modal?.del&&<ConfirmModal message="¿Eliminar este evento?" onConfirm={()=>api.deleteEvent(modal.del)} onClose={()=>setModal(null)}/>}
     </div>
   );
 };
@@ -1912,10 +1956,11 @@ function App() {
     try {
       const h = {"Content-Type":"application/json","Authorization":`Bearer ${tok}`};
       const fetchJ = (url) => fetch(API_URL+url,{headers:h}).then(r=>r.json());
-      const [students, payments, exams] = await Promise.all([
+      const [students, payments, exams, eventos] = await Promise.all([
         fetchJ("/api/alumnos"),
         fetchJ("/api/pagos"),
         fetchJ("/api/examenes"),
+        fetchJ("/api/eventos"),
       ]);
       const mappedStudents = Array.isArray(students) ? students.map(a => ({
         id: a.num_control, name: a.nombre,
@@ -1945,14 +1990,29 @@ function App() {
       })) : [];
       const mappedExams = Array.isArray(exams) ? exams.map(x => ({
         id: String(x.id_examen), sid: x.num_control_alumno,
-        date: x.fecha||todayStr(), fromBelt:"Blanco",
+        date: x.fecha ? x.fecha.split('T')[0] : todayStr(),
+        fromBelt: "Blanco",
         toBelt: x.cinta_aspirada_color||"Amarillo",
-        passed: x.resultado==="Aprobado", notes: x.observaciones||""
+        resultado: x.resultado||"Pendiente",
+        passed: x.resultado==="Aprobado",
+        notes: x.observaciones||"",
+        nombre_examen: x.nombre_examen||"",
+        sede: x.sede||""
       })) : [];
+      const mappedEvents = Array.isArray(eventos) ? eventos.map(e=>({
+        id: String(e.id_evento),
+        title: e.titulo,
+        type: e.tipo||"especial",
+        date: e.fecha ? e.fecha.split('T')[0] : todayStr(),
+        place: e.lugar||"",
+        desc: e.descripcion||""
+      })) : [];
+
       setDb(prev=>({...prev,
         students: mappedStudents.length>0?mappedStudents:prev.students,
         payments: mappedPayments.length>0?mappedPayments:prev.payments,
         exams: mappedExams.length>0?mappedExams:prev.exams,
+        events: mappedEvents.length>0?mappedEvents:prev.events,
       }));
     } catch(e){ console.log("Usando datos locales:",e); }
   };
