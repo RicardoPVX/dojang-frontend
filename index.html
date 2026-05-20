@@ -217,6 +217,7 @@ const INIT_DB = {
   clases:[],
   equipo:[],
   instructores:[],
+  lockers:[],
   inventory: buildInitInventory(),
 };
 
@@ -655,6 +656,52 @@ function createApi(db, setDb) {
         const cur=db.inventory[itemId]||{qty:0,minStock:2};
         return{inventory:{...db.inventory,[itemId]:{...cur,qty:Math.max(0,cur.qty+delta)}}};
       });
+    },
+    // ── LOCKERS (API real) ──
+    getLockers: () => db.lockers,
+    fetchLockers: async () => {
+      try {
+        const data = await apiFetch("/api/lockers");
+        const mapped = data.map(l=>({
+          id: String(l.id_locker),
+          numero: l.numero_locker,
+          color: l.color||"Gris",
+          alumnoId: l.num_control_alumno||null,
+          alumnoNombre: l.alumno_nombre||null,
+          fechaAsignacion: l.fecha_asignacion ? l.fecha_asignacion.split('T')[0] : null,
+        }));
+        mutate(()=>({lockers: mapped}));
+        return mapped;
+      } catch(e){ return db.lockers; }
+    },
+    addLocker: async (d) => {
+      try {
+        const resp = await apiFetch("/api/lockers", {method:"POST", body: JSON.stringify({numero_locker: d.numero, color: d.color})});
+        if(resp?.id_locker){
+          mutate(db=>({lockers:[...db.lockers,{id:String(resp.id_locker),numero:d.numero,color:d.color||"Gris",alumnoId:null,alumnoNombre:null,fechaAsignacion:null}]}));
+          return true;
+        }
+      } catch(e){ console.error(e); }
+      return false;
+    },
+    deleteLocker: async (id) => {
+      try { await apiFetch(`/api/lockers/${id}`, {method:"DELETE"}); } catch(e){ console.error(e); }
+      mutate(db=>({lockers: db.lockers.filter(l=>l.id!==id)}));
+    },
+    asignarLocker: async (lockerId, alumnoId) => {
+      try {
+        const resp = await apiFetch(`/api/lockers/${lockerId}/asignar`, {method:"PUT", body: JSON.stringify({num_control_alumno: alumnoId})});
+        if(resp?.id_locker){
+          const alumnoNombre = db.students.find(s=>s.id===alumnoId)?.name||null;
+          mutate(db=>({lockers: db.lockers.map(l=>l.id===lockerId ? {...l,alumnoId,alumnoNombre,fechaAsignacion:todayStr()} : l.alumnoId===alumnoId ? {...l,alumnoId:null,alumnoNombre:null,fechaAsignacion:null} : l)}));
+          return true;
+        }
+      } catch(e){ console.error(e); }
+      return false;
+    },
+    liberarLocker: async (lockerId) => {
+      try { await apiFetch(`/api/lockers/${lockerId}/liberar`, {method:"PUT"}); } catch(e){ console.error(e); }
+      mutate(db=>({lockers: db.lockers.map(l=>l.id===lockerId?{...l,alumnoId:null,alumnoNombre:null,fechaAsignacion:null}:l)}));
     },
   };
 }
@@ -1992,6 +2039,7 @@ const AdminLayout = ({session,api,onLogout}) => {
     {id:"events",label:"Agenda",icon:"calendar"},
     {id:"clases",label:"Clases",icon:"clock"},
     {id:"inventory",label:"Inventario",icon:"box"},
+    {id:"lockers",label:"Lockers",icon:"settings"},
     {id:"profile",label:"Mi Perfil",icon:"settings"},
   ];
   const handleNav=(id)=>{setTab(id);setSidebarOpen(false);};
@@ -2041,10 +2089,241 @@ const AdminLayout = ({session,api,onLogout}) => {
           {tab==="events"&&<AdminEvents api={api}/>}
           {tab==="clases"&&<AdminClases api={api}/>}
         {tab==="inventory"&&<AdminInventory api={api} onToast={showToast}/>}
+          {tab==="lockers"&&<AdminLockers api={api} onToast={showToast}/>}
           {tab==="profile"&&<AdminProfile api={api} onToast={showToast} session={session}/>}
         </div>
       </div>
       {toast&&<Toast msg={toast} onDone={()=>setToast(null)}/>}
+    </div>
+  );
+};
+
+// ─── STUDENT LOCKERS ─────────────────────────────────────────────────────────
+const StudentLockers = ({api, student, onToast}) => {
+  const [loading, setLoading] = useState(false);
+  const [confirm, setConfirm] = useState(null); // {action:'tomar'|'liberar', locker}
+  const lockers = api.getLockers();
+  const miLocker = lockers.find(l=>l.alumnoId===student.id);
+
+  const handleTomar = async (locker) => {
+    setLoading(true);
+    const ok = await api.asignarLocker(locker.id, student.id);
+    setLoading(false);
+    if(ok) onToast(`¡Locker #${locker.numero} asignado!`);
+    else onToast("Error al asignar locker");
+    setConfirm(null);
+  };
+
+  const handleLiberar = async () => {
+    if(!miLocker) return;
+    setLoading(true);
+    await api.liberarLocker(miLocker.id);
+    setLoading(false);
+    onToast("Locker liberado correctamente");
+    setConfirm(null);
+  };
+
+  return (
+    <div>
+      <div className="section-title" style={{marginBottom:4}}>LOCKERS</div>
+      <div style={{color:"#555577",fontSize:12,marginBottom:20}}>Selecciona un locker disponible. Los lockers en rojo ya están ocupados.</div>
+
+      {miLocker && (
+        <div style={{background:"rgba(74,222,128,.08)",border:"1px solid rgba(74,222,128,.3)",borderRadius:10,padding:"16px 20px",marginBottom:24,display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
+          <div style={{display:"flex",alignItems:"center",gap:14}}>
+            <div style={{fontSize:28}}>🔒</div>
+            <div>
+              <div style={{color:"#4ade80",fontWeight:700,fontSize:14}}>Tu locker actual: #{miLocker.numero}</div>
+              <div style={{color:"#9090b0",fontSize:12,marginTop:2}}>Color: {miLocker.color} · Asignado el {fmtDate(miLocker.fechaAsignacion)}</div>
+            </div>
+          </div>
+          <button className="tk-btn btn-danger btn-sm" onClick={()=>setConfirm({action:"liberar"})} disabled={loading}>
+            Liberar locker
+          </button>
+        </div>
+      )}
+
+      {lockers.length===0 ? (
+        <div className="empty-state"><div className="empty-icon">🔒</div><div>No hay lockers disponibles aún</div><div style={{fontSize:12,marginTop:8}}>Contacta al maestro para más información</div></div>
+      ) : (
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(170px,1fr))",gap:10}}>
+          {lockers.map(l=>{
+            const clr = LOCKER_COLOR_MAP[l.color]||"#6b7280";
+            const esMio = l.alumnoId===student.id;
+            const ocupado = !!l.alumnoId && !esMio;
+            const libre = !l.alumnoId;
+            return (
+              <div key={l.id} style={{
+                background: esMio?"rgba(74,222,128,.08)":ocupado?"rgba(239,68,68,.07)":"#13131e",
+                border: esMio?"1px solid rgba(74,222,128,.4)":ocupado?"1px solid rgba(239,68,68,.3)":"1px solid #1e1e2e",
+                borderRadius:10,padding:"14px 16px",
+                cursor: libre?"pointer":"default",
+                transition:"all .15s",
+                opacity: ocupado?0.6:1,
+                position:"relative",overflow:"hidden"
+              }}
+              onClick={()=>{if(libre && !loading) setConfirm({action:"tomar",locker:l});}}>
+                <div style={{position:"absolute",top:0,left:0,width:3,height:"100%",background:clr,borderRadius:"10px 0 0 10px"}}/>
+                <div style={{paddingLeft:6}}>
+                  <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:26,color: esMio?"#4ade80":ocupado?"#f87171":"#f0f0fa",letterSpacing:1,lineHeight:1}}>#{l.numero}</div>
+                  <div style={{fontSize:10,color:clr,fontWeight:600,textTransform:"uppercase",letterSpacing:.5,margin:"4px 0 6px"}}>{l.color}</div>
+                  {esMio && <span style={{fontSize:10,fontWeight:700,color:"#4ade80",background:"rgba(74,222,128,.15)",padding:"2px 7px",borderRadius:20}}>✓ El tuyo</span>}
+                  {ocupado && <span style={{fontSize:10,fontWeight:600,color:"#f87171",background:"rgba(239,68,68,.12)",padding:"2px 7px",borderRadius:20}}>Ocupado</span>}
+                  {libre && <span style={{fontSize:10,fontWeight:600,color:"#4ade80",background:"rgba(74,222,128,.1)",padding:"2px 7px",borderRadius:20}}>Disponible →</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {confirm?.action==="tomar"&&(
+        <div className="overlay">
+          <div className="modal">
+            <div className="modal-title">ELEGIR LOCKER</div>
+            <div style={{marginBottom:20,color:"#b0b0cc",lineHeight:1.7}}>
+              ¿Quieres asignarte el locker <strong style={{color:"#f0f0fa"}}>#{confirm.locker.numero}</strong>?
+              {miLocker&&<span style={{color:"#d4960f"}}> Tu locker anterior (#{miLocker.numero}) quedará libre.</span>}
+            </div>
+            <div className="form-actions">
+              <button className="tk-btn btn-ghost" onClick={()=>setConfirm(null)}>Cancelar</button>
+              <button className="tk-btn btn-green" onClick={()=>handleTomar(confirm.locker)} disabled={loading}>
+                {loading?"Asignando...":"Sí, tomar este locker"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirm?.action==="liberar"&&(
+        <div className="overlay">
+          <div className="modal">
+            <div className="modal-title">LIBERAR LOCKER</div>
+            <div style={{marginBottom:20,color:"#b0b0cc",lineHeight:1.7}}>
+              ¿Confirmas que ya no usarás el locker <strong style={{color:"#f0f0fa"}}>#{miLocker?.numero}</strong>? Quedará disponible para otros alumnos.
+            </div>
+            <div className="form-actions">
+              <button className="tk-btn btn-ghost" onClick={()=>setConfirm(null)}>Cancelar</button>
+              <button className="tk-btn btn-danger" onClick={handleLiberar} disabled={loading}>
+                {loading?"Liberando...":"Sí, liberar locker"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── ADMIN LOCKERS ────────────────────────────────────────────────────────────
+const LOCKER_COLORS = ["Gris","Rojo","Azul","Verde","Amarillo","Negro","Naranja","Morado"];
+const LOCKER_COLOR_MAP = {
+  Gris:"#6b7280",Rojo:"#ef4444",Azul:"#3b82f6",Verde:"#22c55e",
+  Amarillo:"#eab308",Negro:"#374151",Naranja:"#f97316",Morado:"#a855f7"
+};
+
+const AdminLockers = ({api, onToast}) => {
+  const [modal, setModal] = useState(null);
+  const [form, setForm] = useState({numero:"", color:"Gris"});
+  const lockers = api.getLockers();
+  const students = api.getStudents();
+
+  const handleAdd = async (e) => {
+    e.preventDefault();
+    if(!form.numero.trim()) return;
+    const ok = await api.addLocker(form);
+    if(ok){ onToast("Locker creado"); setModal(null); setForm({numero:"",color:"Gris"}); }
+    else onToast("Error al crear locker");
+  };
+
+  const handleLiberar = async (l) => {
+    await api.liberarLocker(l.id);
+    onToast(`Locker ${l.numero} liberado`);
+  };
+
+  const libre = lockers.filter(l=>!l.alumnoId).length;
+  const ocupado = lockers.filter(l=>l.alumnoId).length;
+
+  return (
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+        <div>
+          <div className="section-title">GESTIÓN DE LOCKERS</div>
+          <div style={{color:"#555577",fontSize:12,marginTop:2}}>
+            <span style={{color:"#4ade80",fontWeight:600}}>{libre} libres</span>
+            {" · "}
+            <span style={{color:"#f87171",fontWeight:600}}>{ocupado} ocupados</span>
+            {" · "}
+            <span style={{color:"#9090b0"}}>{lockers.length} total</span>
+          </div>
+        </div>
+        <button className="tk-btn btn-red" onClick={()=>setModal("add")}><Icon name="plus" size={14}/>Nuevo locker</button>
+      </div>
+
+      {lockers.length===0 ? (
+        <div className="empty-state"><div className="empty-icon">🔒</div><div>No hay lockers registrados</div><div style={{fontSize:12,marginTop:8}}>Agrega el primero con el botón de arriba</div></div>
+      ) : (
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:12}}>
+          {lockers.map(l=>{
+            const clr = LOCKER_COLOR_MAP[l.color]||"#6b7280";
+            const ocupado = !!l.alumnoId;
+            return (
+              <div key={l.id} className="card" style={{padding:16,borderColor:ocupado?"rgba(239,68,68,.35)":"rgba(74,222,128,.25)",position:"relative",overflow:"hidden"}}>
+                <div style={{position:"absolute",top:0,left:0,width:4,height:"100%",background:clr,borderRadius:"10px 0 0 10px"}}/>
+                <div style={{paddingLeft:8}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+                    <div>
+                      <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,color:"#f0f0fa",letterSpacing:1}}>#{l.numero}</div>
+                      <div style={{fontSize:11,color:clr,fontWeight:600,textTransform:"uppercase",letterSpacing:.5}}>{l.color}</div>
+                    </div>
+                    <span style={{padding:"3px 8px",borderRadius:20,fontSize:11,fontWeight:600,background:ocupado?"rgba(239,68,68,.15)":"rgba(74,222,128,.12)",color:ocupado?"#f87171":"#4ade80",border:`1px solid ${ocupado?"rgba(239,68,68,.3)":"rgba(74,222,128,.25)"}`}}>
+                      {ocupado?"Ocupado":"Libre"}
+                    </span>
+                  </div>
+                  {ocupado ? (
+                    <div style={{marginBottom:10}}>
+                      <div style={{fontSize:12,color:"#dde0ee",fontWeight:500}}>{l.alumnoNombre||l.alumnoId}</div>
+                      <div style={{fontSize:11,color:"#555577",marginTop:2}}>Desde {fmtDate(l.fechaAsignacion)}</div>
+                    </div>
+                  ) : (
+                    <div style={{fontSize:12,color:"#4a4a6a",marginBottom:10,fontStyle:"italic"}}>Sin asignar</div>
+                  )}
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                    {ocupado&&<button className="tk-btn btn-ghost btn-sm" style={{fontSize:11}} onClick={()=>handleLiberar(l)}>Liberar</button>}
+                    <button className="tk-btn btn-danger btn-sm" style={{fontSize:11}} onClick={()=>setModal({del:l})}><Icon name="trash" size={11}/></button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {modal==="add"&&(
+        <div className="overlay">
+          <div className="modal">
+            <div className="modal-title">NUEVO LOCKER</div>
+            <form onSubmit={handleAdd}>
+              <div className="form-row form-row-2">
+                <div><label className="tk-label">Número / Etiqueta</label><input className="tk-input" required value={form.numero} onChange={e=>setForm(p=>({...p,numero:e.target.value}))} placeholder="Ej. 01, A1, 101"/></div>
+                <div><label className="tk-label">Color</label>
+                  <select className="tk-input" value={form.color} onChange={e=>setForm(p=>({...p,color:e.target.value}))}>
+                    {LOCKER_COLORS.map(c=><option key={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="form-actions">
+                <button type="button" className="tk-btn btn-ghost" onClick={()=>setModal(null)}>Cancelar</button>
+                <button type="submit" className="tk-btn btn-red">Crear locker</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {modal?.del&&(
+        <ConfirmModal message={`¿Eliminar el locker #${modal.del.numero}?`} onConfirm={async()=>{await api.deleteLocker(modal.del.id);onToast("Locker eliminado");}} onClose={()=>setModal(null)}/>
+      )}
     </div>
   );
 };
@@ -2096,6 +2375,7 @@ const StudentPortal = ({session,api,onLogout}) => {
     {id:"exams",label:"Mis exámenes",icon:"diploma"},
     {id:"payments",label:"Mis pagos",icon:"payment"},
     {id:"events",label:"Próximos eventos",icon:"calendar"},
+    {id:"lockers",label:"Lockers",icon:"box"},
   ];
   return(
     <div style={{minHeight:"100vh"}}>
@@ -2271,6 +2551,11 @@ const StudentPortal = ({session,api,onLogout}) => {
             )}
           </div>
         )}
+
+        {/* LOCKERS */}
+        {tab==="lockers"&&(
+          <StudentLockers api={api} student={student} onToast={showToast}/>
+        )}
       </div>
 
       {editPersonal&&(
@@ -2310,7 +2595,7 @@ function App() {
       const h = {"Content-Type":"application/json","Authorization":`Bearer ${tok}`};
       const fetchJ = (url) => fetch(API_URL+url,{headers:h}).then(r=>r.json());
       const safeGet = async (url) => { try { return await fetchJ(url); } catch(e) { return []; } };
-      const [students, payments, exams, torneos, clases, equipo, instructores] = await Promise.all([
+      const [students, payments, exams, torneos, clases, equipo, instructores, lockers] = await Promise.all([
         safeGet("/api/alumnos"),
         safeGet("/api/pagos"),
         safeGet("/api/examenes"),
@@ -2318,6 +2603,7 @@ function App() {
         safeGet("/api/clases"),
         safeGet("/api/equipo"),
         safeGet("/api/instructores"),
+        safeGet("/api/lockers"),
       ]);
       const mappedStudents = Array.isArray(students) ? students.map(a => ({
         id: a.num_control, name: a.nombre,
@@ -2395,6 +2681,15 @@ function App() {
         username: i.username||"",
       })) : [];
 
+      const mappedLockers = Array.isArray(lockers) ? lockers.map(l=>({
+        id: String(l.id_locker),
+        numero: l.numero_locker,
+        color: l.color||"Gris",
+        alumnoId: l.num_control_alumno||null,
+        alumnoNombre: l.alumno_nombre||null,
+        fechaAsignacion: l.fecha_asignacion ? l.fecha_asignacion.split('T')[0] : null,
+      })) : [];
+
       // Set admin instructor data in db.admin
       const myInstr = mappedInstructores.find(i=>i.id===String(tok_id_instructor));
       setDb(prev=>({...prev,
@@ -2405,6 +2700,7 @@ function App() {
         clases: mappedClases.length>0?mappedClases:prev.clases,
         equipo: mappedEquipo.length>0?mappedEquipo:prev.equipo,
         instructores: mappedInstructores.length>0?mappedInstructores:prev.instructores,
+        lockers: mappedLockers.length>0?mappedLockers:prev.lockers,
         admin: myInstr ? {...prev.admin, cargo:myInstr.cargo, grado_cinta:myInstr.grado_cinta, phone:myInstr.telefono||prev.admin.phone, email:myInstr.email||prev.admin.email} : prev.admin,
       }));
     } catch(e){ console.log("Usando datos locales:",e); }
