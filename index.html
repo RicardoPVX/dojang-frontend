@@ -214,6 +214,8 @@ const INIT_DB = {
   admin:{user:"maestro",pass:"admin123",name:"Maestro Ramírez",email:"maestro@dojang.mx",phone:"961-000-0000",dojangName:"Dojang Taekwondo Tuxtla",address:"Av. Principal 123, Tuxtla Gutiérrez"},
   torneos: [],
   torneos:[],
+  clases:[],
+  equipo:[],
   inventory: buildInitInventory(),
 };
 
@@ -307,6 +309,10 @@ function createApi(db, setDb) {
           tel_emergencia: d.personal?.emergencyPhone || "",
           notas_medicas: d.personal?.medNotes || ""
         })});
+        // Assign class if provided
+        if(d.claseId){
+          try { await apiFetch(`/api/clases/alumno/${d.user||d.id}`, {method:"PUT", body: JSON.stringify({id_clase:d.claseId})}); } catch(e2){}
+        }
       } catch(e) { console.error("Error registrando alumno:", e); }
       mutate(db=>({students:[...db.students,{...d,id:d.user||d.id,
         personal:d.personal||{address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}}]}));
@@ -330,10 +336,19 @@ function createApi(db, setDb) {
           notas_medicas: d.personal?.medNotes || ""
         })});
       } catch(e) { console.error("Error actualizando alumno:", e); }
+      // Update class assignment if changed
+      if (d.claseId !== undefined) {
+        try { await apiFetch(`/api/clases/alumno/${id}`, {method:"PUT", body: JSON.stringify({id_clase:d.claseId||null})}); } catch(e){}
+      }
       mutate(db=>({students:db.students.map(s=>{
         if(s.id!==id) return s;
         const age = d.dob ? Math.floor((new Date()-new Date(d.dob))/(365.25*24*60*60*1000)) : s.age;
-        return {...s,...d, age};
+        const claseInfo = d.claseId ? db.clases.find(c=>c.id===d.claseId) : null;
+        return {...s,...d, age,
+          claseNombre: claseInfo?.nombre || (d.claseId?s.claseNombre:null),
+          claseDias: claseInfo?.dias || (d.claseId?s.claseDias:null),
+          claseHora: claseInfo ? `${claseInfo.horaInicio} - ${claseInfo.horaFin}` : (d.claseId?s.claseHora:null)
+        };
       })}));
     },
     updateStudentPersonal:(id,personal)=>mutate(db=>({students:db.students.map(s=>s.id===id?{...s,personal:{...s.personal,...personal}}:s)})),
@@ -497,6 +512,62 @@ function createApi(db, setDb) {
       const s=db.students.find(s=>s.id===sid);
       return addMonths(xs.length>0?xs[0].date:(s?.joined||todayStr()),EXAM_MONTHS);
     },
+    // ── CLASES ──
+    getClases: () => db.clases,
+    addClass: async (d) => {
+      try {
+        const resp = await apiFetch("/api/clases", {method:"POST", body: JSON.stringify({
+          nombre: d.nombre, dia_semana: d.dia_semana, hora_inicio: d.hora_inicio, hora_fin: d.hora_fin
+        })});
+        if(resp?.id_clase){
+          mutate(db=>({clases:[...db.clases,{id:String(resp.id_clase),nombre:d.nombre,dias:d.dia_semana,horaInicio:d.hora_inicio.slice(0,5),horaFin:d.hora_fin.slice(0,5)}]}));
+          return;
+        }
+      } catch(e){ console.error(e); }
+    },
+    updateClass: async (id,d) => {
+      try {
+        await apiFetch(`/api/clases/${id}`, {method:"PUT", body: JSON.stringify({
+          nombre: d.nombre, dia_semana: d.dia_semana, hora_inicio: d.hora_inicio, hora_fin: d.hora_fin
+        })});
+      } catch(e){ console.error(e); }
+      mutate(db=>({clases:db.clases.map(c=>c.id===id?{...c,nombre:d.nombre,dias:d.dia_semana,horaInicio:d.hora_inicio.slice(0,5),horaFin:d.hora_fin.slice(0,5)}:c)}));
+    },
+    deleteClass: async (id) => {
+      try { await apiFetch(`/api/clases/${id}`, {method:"DELETE"}); } catch(e){ console.error(e); }
+      mutate(db=>({clases:db.clases.filter(c=>c.id!==id),students:db.students.map(s=>s.claseId===id?{...s,claseId:null,claseNombre:null,claseDias:null,claseHora:null}:s)}));
+    },
+    assignClass: async (alumnoId, claseId) => {
+      try { await apiFetch(`/api/clases/alumno/${alumnoId}`, {method:"PUT", body: JSON.stringify({id_clase:claseId||null})}); } catch(e){ console.error(e); }
+    },
+    // ── EQUIPO ──
+    getEquipo: () => db.equipo,
+    addEquipoItem: async (d) => {
+      try {
+        const resp = await apiFetch("/api/equipo", {method:"POST", body: JSON.stringify(d)});
+        if(resp?.id_articulo){
+          mutate(db=>({equipo:[...db.equipo,{...d,id:String(resp.id_articulo),stock:+d.stock,stock_minimo:+d.stock_minimo,precio_unitario:+d.precio_unitario}]}));
+          return;
+        }
+      } catch(e){ console.error(e); }
+    },
+    updateEquipoItem: async (id,d) => {
+      try { await apiFetch(`/api/equipo/${id}`, {method:"PUT", body: JSON.stringify(d)}); } catch(e){ console.error(e); }
+      mutate(db=>({equipo:db.equipo.map(e=>e.id===id?{...e,...d,stock:+d.stock,stock_minimo:+d.stock_minimo,precio_unitario:+d.precio_unitario}:e)}));
+    },
+    deleteEquipoItem: async (id) => {
+      try { await apiFetch(`/api/equipo/${id}`, {method:"DELETE"}); } catch(e){ console.error(e); }
+      mutate(db=>({equipo:db.equipo.filter(e=>e.id!==id)}));
+    },
+    adjustStock: async (id, delta) => {
+      const item = db.equipo.find(e=>e.id===id);
+      if(!item) return;
+      const newStock = Math.max(0, item.stock+delta);
+      try {
+        await apiFetch(`/api/equipo/${id}`, {method:"PUT", body: JSON.stringify({...item,stock:newStock})});
+      } catch(e){ console.error(e); }
+      mutate(db=>({equipo:db.equipo.map(e=>e.id===id?{...e,stock:newStock}:e)}));
+    },
     // ── TORNEOS (local) ──
     getTorneos: () => db.torneos,
     addTorneo: async (d) => {
@@ -576,6 +647,7 @@ const ICONS = {
   x:"M6 18L18 6M6 6l12 12",
   diploma:"M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222",
   clock:"M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
+  users2:"M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z",
   bell:"M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9",
   box:"M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4",
   settings:"M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
@@ -823,94 +895,87 @@ const AdminProfile = ({api,onToast}) => {
 };
 
 // ─── INVENTARIO ADMIN ─────────────────────────────────────────────────────────
+// ─── EQUIPO FORM ─────────────────────────────────────────────────────────────
+const EquipoForm = ({initial,onSave,onClose}) => {
+  const empty={descripcion:"",talla_modelo:"",precio_unitario:"",stock:0,stock_minimo:2};
+  const [f,setF]=useState(initial||empty);
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  const submit=(e)=>{e.preventDefault();onSave(f);onClose();};
+  return(
+    <form onSubmit={submit}>
+      <div className="form-row">
+        <div><label className="tk-label">Descripción</label><input className="tk-input" required value={f.descripcion} onChange={e=>set("descripcion",e.target.value)} placeholder="Ej. Dobok Talla M"/></div>
+      </div>
+      <div className="form-row form-row-2">
+        <div><label className="tk-label">Talla/Modelo</label><input className="tk-input" value={f.talla_modelo||""} onChange={e=>set("talla_modelo",e.target.value)} placeholder="Ej. M, L, XL"/></div>
+        <div><label className="tk-label">Precio unitario ($)</label><input className="tk-input" type="number" required min="0" step="0.01" value={f.precio_unitario} onChange={e=>set("precio_unitario",e.target.value)}/></div>
+      </div>
+      <div className="form-row form-row-2">
+        <div><label className="tk-label">Stock actual</label><input className="tk-input" type="number" min="0" value={f.stock} onChange={e=>set("stock",+e.target.value)}/></div>
+        <div><label className="tk-label">Stock mínimo</label><input className="tk-input" type="number" min="0" value={f.stock_minimo} onChange={e=>set("stock_minimo",+e.target.value)}/></div>
+      </div>
+      <div className="form-actions">
+        <button type="button" className="tk-btn btn-ghost" onClick={onClose}>Cancelar</button>
+        <button type="submit" className="tk-btn btn-red">Guardar</button>
+      </div>
+    </form>
+  );
+};
+
 const AdminInventory = ({api,onToast}) => {
-  const inv = api.getInventory();
-  const [openCats,setOpenCats] = useState({"uniformes":true,"cintas":false,"distintivos":false,"protectores":true});
-  const [editItem,setEditItem] = useState(null);
-  const toggle = (id)=>setOpenCats(p=>({...p,[id]:!p[id]}));
-
-  const totalItems = INV_CATEGORIES.reduce((a,c)=>a+c.items.length,0);
-  const lowStock = INV_CATEGORIES.reduce((a,c)=>a+c.items.filter(it=>{const d=inv[it.id];return d&&d.qty>0&&d.qty<=d.minStock;}).length,0);
-  const outStock = INV_CATEGORIES.reduce((a,c)=>a+c.items.filter(it=>{const d=inv[it.id];return d&&d.qty===0;}).length,0);
-
+  const [modal,setModal]=useState(null);
+  const equipo=api.getEquipo();
+  const total=equipo.length;
+  const sinStock=equipo.filter(i=>i.stock===0).length;
+  const bajStock=equipo.filter(i=>i.stock>0&&i.stock<=i.stock_minimo).length;
+  const enStock=total-sinStock-bajStock;
   return(
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
         <div className="section-title">INVENTARIO</div>
-        <div style={{fontSize:12,color:"#555577"}}>Actualización en tiempo real</div>
+        <button className="tk-btn btn-red" onClick={()=>setModal("add")}><Icon name="plus" size={14}/>Nuevo artículo</button>
       </div>
-
-      {/* Stats */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
-        {[
-          {label:"Total artículos",val:totalItems,color:"#dde0ee"},
-          {label:"En stock",val:totalItems-lowStock-outStock,color:"#4ade80"},
-          {label:"Stock bajo",val:lowStock,color:"#d4960f"},
-          {label:"Sin stock",val:outStock,color:"#f87171"},
-        ].map(s=>(
-          <div key={s.label} className="stat-card">
-            <div className="stat-value" style={{color:s.color}}>{s.val}</div>
-            <div className="stat-label">{s.label}</div>
-          </div>
+        {[{label:"Total artículos",val:total,color:"#dde0ee"},{label:"En stock",val:enStock,color:"#4ade80"},{label:"Stock bajo",val:bajStock,color:"#d4960f"},{label:"Sin stock",val:sinStock,color:"#f87171"}].map(s=>(
+          <div key={s.label} className="stat-card"><div className="stat-value" style={{color:s.color}}>{s.val}</div><div className="stat-label">{s.label}</div></div>
         ))}
       </div>
-
-      {outStock>0&&(
-        <div style={{background:"rgba(239,68,68,.08)",border:"1px solid rgba(239,68,68,.3)",borderRadius:10,padding:"12px 18px",marginBottom:16,display:"flex",alignItems:"center",gap:10}}>
-          <Icon name="warning" size={18}/><span style={{color:"#f87171",fontSize:13,fontWeight:600}}>{outStock} artículo{outStock!==1?"s":""} sin stock — revisa tu inventario</span>
-        </div>
-      )}
-
-      {/* Categorías */}
-      {INV_CATEGORIES.map(cat=>{
-        const catLow = cat.items.filter(it=>{const d=inv[it.id];return d&&d.qty>0&&d.qty<=d.minStock;}).length;
-        const catOut = cat.items.filter(it=>{const d=inv[it.id];return !d||d.qty===0;}).length;
-        return(
-          <div key={cat.id} style={{marginBottom:12}}>
-            <div className="inv-category-header" onClick={()=>toggle(cat.id)}>
-              <span style={{fontSize:20}}>{cat.icon}</span>
-              <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:17,letterSpacing:1,color:"#f0f0fa",flex:1}}>{cat.label}</span>
-              {catOut>0&&<span className="tag stock-out">{catOut} sin stock</span>}
-              {catLow>0&&<span className="tag stock-low" style={{marginLeft:6}}>{catLow} bajo</span>}
-              <span style={{color:"#555577",marginLeft:8,transition:"transform .2s",display:"block",transform:openCats[cat.id]?"rotate(180deg)":"rotate(0)"}}><Icon name="chevronDown" size={16}/></span>
-            </div>
-            {openCats[cat.id]&&(
-              <div className="card" style={{marginTop:4}}>
-                {cat.items.map(item=>{
-                  const d = inv[item.id]||{qty:0,minStock:2};
-                  const stockClass = d.qty===0?"stock-out":d.qty<=d.minStock?"stock-low":"stock-ok";
-                  return(
-                    <div key={item.id} className="inv-item-row">
-                      <div>
-                        <div style={{color:"#dde0ee",fontSize:13,fontWeight:500}}>{item.name}</div>
-                        <div style={{fontSize:11,color:"#555577",marginTop:2}}>Mín. recomendado: {d.minStock} unid.</div>
-                      </div>
-                      <div className="number-input-wrapper">
-                        <button className="qty-btn" onClick={()=>{api.adjustStock(item.id,-1);onToast(`${item.name} actualizado`);}}>−</button>
-                        <div className="qty-display">{d.qty}</div>
-                        <button className="qty-btn" onClick={()=>{api.adjustStock(item.id,1);onToast(`${item.name} actualizado`);}}>+</button>
-                      </div>
-                      <span className={`stock-badge ${stockClass}`}>{d.qty===0?"SIN STOCK":d.qty<=d.minStock?"STOCK BAJO":"EN STOCK"}</span>
-                      <button className="tk-btn btn-ghost btn-sm" onClick={()=>setEditItem({item,d})} title="Editar mínimo"><Icon name="settings" size={13}/></button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })}
-
-      {/* Edit min stock modal */}
-      {editItem&&(
-        <Modal title={`AJUSTAR — ${editItem.item.name}`} onClose={()=>setEditItem(null)}>
-          <EditStockModal item={editItem.item} data={editItem.d} api={api} onToast={onToast} onClose={()=>setEditItem(null)}/>
-        </Modal>
-      )}
+      {sinStock>0&&<div style={{background:"rgba(239,68,68,.08)",border:"1px solid rgba(239,68,68,.3)",borderRadius:10,padding:"12px 18px",marginBottom:16,display:"flex",alignItems:"center",gap:10}}><Icon name="warning" size={18}/><span style={{color:"#f87171",fontSize:13,fontWeight:600}}>{sinStock} artículo{sinStock!==1?"s":""} sin stock</span></div>}
+      {equipo.length===0
+        ?<div className="card empty-state" style={{padding:48}}><div className="empty-icon">📦</div><div>Sin artículos en inventario</div><div style={{fontSize:12,marginTop:8,color:"#333355"}}>Agrega artículos con "+ Nuevo artículo"</div></div>
+        :<div className="card"><table>
+          <thead><tr><th>Descripción</th><th>Talla/Modelo</th><th>Precio</th><th>Stock</th><th>Estado</th><th></th></tr></thead>
+          <tbody>
+            {equipo.map(item=>{
+              const sc=item.stock===0?"stock-out":item.stock<=item.stock_minimo?"stock-low":"stock-ok";
+              const sl=item.stock===0?"SIN STOCK":item.stock<=item.stock_minimo?"STOCK BAJO":"EN STOCK";
+              return(
+                <tr key={item.id}>
+                  <td style={{color:"#dde0ee",fontWeight:500}}>{item.descripcion}</td>
+                  <td style={{color:"#9090b0"}}>{item.talla_modelo||"—"}</td>
+                  <td style={{color:"#9090b0"}}>{mxn(item.precio_unitario)}</td>
+                  <td><div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <button className="qty-btn" onClick={()=>api.adjustStock(item.id,-1)}>−</button>
+                    <span className="qty-display">{item.stock}</span>
+                    <button className="qty-btn" onClick={()=>api.adjustStock(item.id,1)}>+</button>
+                  </div></td>
+                  <td><span className={`stock-badge ${sc}`}>{sl}</span></td>
+                  <td><div style={{display:"flex",gap:5}}>
+                    <button className="tk-btn btn-ghost btn-sm" onClick={()=>setModal({edit:item})}><Icon name="edit" size={13}/></button>
+                    <button className="tk-btn btn-danger btn-sm" onClick={()=>setModal({del:item.id})}><Icon name="trash" size={13}/></button>
+                  </div></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table></div>
+      }
+      {modal==="add"&&<Modal title="NUEVO ARTÍCULO" onClose={()=>setModal(null)}><EquipoForm onSave={d=>api.addEquipoItem(d)} onClose={()=>setModal(null)}/></Modal>}
+      {modal?.edit&&<Modal title="EDITAR ARTÍCULO" onClose={()=>setModal(null)}><EquipoForm initial={modal.edit} onSave={d=>api.updateEquipoItem(modal.edit.id,d)} onClose={()=>setModal(null)}/></Modal>}
+      {modal?.del&&<ConfirmModal message="¿Eliminar este artículo del inventario?" onConfirm={()=>api.deleteEquipoItem(modal.del)} onClose={()=>setModal(null)}/>}
     </div>
   );
 };
-
 const EditStockModal = ({item,data,api,onToast,onClose}) => {
   const [qty,setQty] = useState(data.qty);
   const [min,setMin] = useState(data.minStock);
@@ -1193,7 +1258,7 @@ const LoginPage = ({onLogin, db}) => {
 
 // ─── STUDENT FORM ─────────────────────────────────────────────────────────────
 const StudentForm = ({initial,onSave,onClose,api}) => {
-  const empty={name:"",dob:"",belt:"Blanco",parent:"",phone:"",email:"",joined:todayStr(),active:true,user:"",pass:"CAMBIAR",personal:{address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}};
+  const empty={name:"",dob:"",belt:"Blanco",parent:"",phone:"",email:"",joined:todayStr(),active:true,user:"",pass:"CAMBIAR",claseId:"",personal:{address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}};
   const [f,setF] = useState(initial||empty);
   const set = (k,v)=>setF(p=>({...p,[k]:v}));
   const setP = (k,v)=>setF(p=>({...p,personal:{...p.personal,[k]:v}}));
@@ -1210,9 +1275,13 @@ const StudentForm = ({initial,onSave,onClose,api}) => {
         <div><label className="tk-label">Nombre completo</label><input className="tk-input" required value={f.name} onChange={e=>handleName(e.target.value)}/></div>
         <div><label className="tk-label">Fecha de nacimiento</label><input className="tk-input" type="date" required max={todayStr()} value={f.dob||""} onChange={e=>set("dob",e.target.value)}/></div>
       </div>
-      <div className="form-row form-row-2">
+      <div className="form-row form-row-3">
         <div><label className="tk-label">Cinturón</label><select className="tk-input" value={f.belt} onChange={e=>set("belt",e.target.value)}>{BELT_LIST.map(b=><option key={b}>{b}</option>)}</select></div>
         <div><label className="tk-label">Fecha de ingreso</label><input className="tk-input" type="date" value={f.joined} onChange={e=>set("joined",e.target.value)}/></div>
+        <div><label className="tk-label">Clase/Horario</label><select className="tk-input" value={f.claseId||""} onChange={e=>set("claseId",e.target.value)}>
+          <option value="">— Sin clase —</option>
+          {api&&api.getClases().map(cl=><option key={cl.id} value={cl.id}>{cl.nombre} · {cl.dias} · {cl.horaInicio}-{cl.horaFin}</option>)}
+        </select></div>
       </div>
       <div className="form-row form-row-2">
         <div><label className="tk-label">Padre / Tutor</label><input className="tk-input" value={f.parent} onChange={e=>set("parent",e.target.value)}/></div>
@@ -1260,7 +1329,7 @@ const AdminStudents = ({api}) => {
       </div>
       <div className="card">
         <table>
-          <thead><tr><th>Alumno</th><th>Edad</th><th>Cinturón</th><th>Tutor</th><th>Teléfono</th><th>Ingreso</th><th>Próx. Examen</th><th></th></tr></thead>
+          <thead><tr><th>Alumno</th><th>Edad</th><th>Cinturón</th><th>Clase</th><th>Tutor</th><th>Teléfono</th><th>Ingreso</th><th>Próx. Examen</th><th></th></tr></thead>
           <tbody>
             {filtered.length===0&&<tr><td colSpan={8}><div className="empty-state"><div className="empty-icon">👥</div><div>Sin alumnos</div></div></td></tr>}
             {filtered.map(s=>{
@@ -1269,7 +1338,9 @@ const AdminStudents = ({api}) => {
               return(
                 <tr key={s.id}>
                   <td><span style={{color:"#dde0ee",fontWeight:500}}>{s.name}</span></td>
-                  <td>{s.age} años</td><td><BeltBadge belt={s.belt}/></td><td>{s.parent}</td>
+                  <td>{s.age} años</td><td><BeltBadge belt={s.belt}/></td>
+                  <td>{s.claseNombre?<div style={{fontSize:11}}><div style={{color:"#dde0ee",fontWeight:500}}>{s.claseNombre}</div><div style={{color:"#666688"}}>{s.claseHora}</div></div>:<span style={{color:"#444466"}}>—</span>}</td>
+                  <td>{s.parent}</td>
                   <td style={{fontFamily:"monospace"}}>{s.phone}</td><td>{fmtDate(s.joined)}</td>
                   <td><span style={{color:col,fontSize:12,fontWeight:500}}>{fmtDate(nd)}</span><span style={{color:"#555577",fontSize:11,display:"block"}}>{dys>=0?`en ${dys}d`:`hace ${Math.abs(dys)}d`}</span></td>
                   <td>
@@ -1562,6 +1633,82 @@ const EventForm = ({initial,onSave,onClose}) => {
     </form>
   );
 };
+// ─── CLASE FORM ──────────────────────────────────────────────────────────────
+const ClaseForm = ({initial,onSave,onClose}) => {
+  const empty={nombre:"",dia_semana:"",hora_inicio:"",hora_fin:""};
+  const [f,setF]=useState(initial||empty);
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  const submit=(e)=>{e.preventDefault();onSave(f);onClose();};
+  return(
+    <form onSubmit={submit}>
+      <div className="form-row">
+        <div><label className="tk-label">Nombre del horario</label><input className="tk-input" required value={f.nombre} onChange={e=>set("nombre",e.target.value)} placeholder="Ej. Horario A"/></div>
+      </div>
+      <div className="form-row">
+        <div><label className="tk-label">Días</label><input className="tk-input" required value={f.dia_semana} onChange={e=>set("dia_semana",e.target.value)} placeholder="Ej. Martes, Miércoles, Jueves"/></div>
+      </div>
+      <div className="form-row form-row-2">
+        <div><label className="tk-label">Hora inicio</label><input className="tk-input" type="time" required value={f.hora_inicio} onChange={e=>set("hora_inicio",e.target.value)}/></div>
+        <div><label className="tk-label">Hora fin</label><input className="tk-input" type="time" required value={f.hora_fin} onChange={e=>set("hora_fin",e.target.value)}/></div>
+      </div>
+      <div className="form-actions">
+        <button type="button" className="tk-btn btn-ghost" onClick={onClose}>Cancelar</button>
+        <button type="submit" className="tk-btn btn-red">Guardar</button>
+      </div>
+    </form>
+  );
+};
+
+// ─── ADMIN CLASES ─────────────────────────────────────────────────────────────
+const AdminClases = ({api}) => {
+  const [modal,setModal]=useState(null);
+  const clases=api.getClases();
+  const students=api.getStudents();
+  const getAlumnos=(id)=>students.filter(s=>s.claseId===id);
+  return(
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+        <div className="section-title">CLASES Y HORARIOS</div>
+        <button className="tk-btn btn-red" onClick={()=>setModal("add")}><Icon name="plus" size={14}/>Nueva clase</button>
+      </div>
+      {clases.length===0
+        ?<div className="card empty-state" style={{padding:48}}><div className="empty-icon">🥋</div><div>Sin clases configuradas</div></div>
+        :<div style={{display:"grid",gap:14,gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))"}}>
+          {clases.map(cl=>{
+            const alumnos=getAlumnos(cl.id);
+            return(
+              <div key={cl.id} className="card" style={{padding:20,borderLeft:"3px solid #c01212"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
+                  <div>
+                    <div style={{color:"#f0f0fa",fontWeight:700,fontSize:16,marginBottom:4}}>{cl.nombre}</div>
+                    <div style={{color:"#9090b0",fontSize:13}}>📅 {cl.dias}</div>
+                    <div style={{color:"#9090b0",fontSize:13}}>⏰ {cl.horaInicio} — {cl.horaFin}</div>
+                  </div>
+                  <div style={{display:"flex",gap:5}}>
+                    <button className="tk-btn btn-ghost btn-sm" onClick={()=>setModal({edit:cl})}><Icon name="edit" size={13}/></button>
+                    <button className="tk-btn btn-danger btn-sm" onClick={()=>setModal({del:cl.id})}><Icon name="trash" size={13}/></button>
+                  </div>
+                </div>
+                <div style={{borderTop:"1px solid #1e1e2e",paddingTop:12}}>
+                  <div style={{fontSize:11,color:"#555577",textTransform:"uppercase",letterSpacing:.7,marginBottom:8}}>
+                    {alumnos.length} alumno{alumnos.length!==1?"s":""}
+                  </div>
+                  {alumnos.length>0&&<div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                    {alumnos.map(a=><span key={a.id} style={{background:"rgba(192,18,18,.1)",color:"#ff8888",fontSize:11,padding:"2px 8px",borderRadius:20,border:"1px solid rgba(192,18,18,.2)"}}>{a.name}</span>)}
+                  </div>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      }
+      {modal==="add"&&<Modal title="NUEVA CLASE" onClose={()=>setModal(null)}><ClaseForm onSave={d=>api.addClass(d)} onClose={()=>setModal(null)}/></Modal>}
+      {modal?.edit&&<Modal title="EDITAR CLASE" onClose={()=>setModal(null)}><ClaseForm initial={{nombre:modal.edit.nombre,dia_semana:modal.edit.dias,hora_inicio:modal.edit.horaInicio,hora_fin:modal.edit.horaFin}} onSave={d=>api.updateClass(modal.edit.id,d)} onClose={()=>setModal(null)}/></Modal>}
+      {modal?.del&&<ConfirmModal message="¿Eliminar esta clase? Los alumnos serán desinscritos." onConfirm={()=>api.deleteClass(modal.del)} onClose={()=>setModal(null)}/>}
+    </div>
+  );
+};
+
 // ─── AGENDA FORMS ────────────────────────────────────────────────────────────
 const ExamenFuturoForm = ({initial,onSave,onClose}) => {
   const empty={nombre_examen:"",sede:"",fecha:todayStr()};
@@ -1757,7 +1904,8 @@ const AdminLayout = ({session,api,onLogout}) => {
     {id:"home",label:"Dashboard",icon:"home"},
     {id:"students",label:"Alumnos",icon:"users"},
     {id:"payments",label:"Pagos",icon:"payment"},
-    {id:"events",label:"Eventos",icon:"calendar"},
+    {id:"events",label:"Agenda",icon:"calendar"},
+    {id:"clases",label:"Clases",icon:"clock"},
     {id:"inventory",label:"Inventario",icon:"box"},
     {id:"profile",label:"Mi Perfil",icon:"settings"},
   ];
@@ -1806,7 +1954,8 @@ const AdminLayout = ({session,api,onLogout}) => {
           {tab==="students"&&<AdminStudents api={api}/>}
           {tab==="payments"&&<AdminPayments api={api}/>}
           {tab==="events"&&<AdminEvents api={api}/>}
-          {tab==="inventory"&&<AdminInventory api={api} onToast={showToast}/>}
+          {tab==="clases"&&<AdminClases api={api}/>}
+        {tab==="inventory"&&<AdminInventory api={api} onToast={showToast}/>}
           {tab==="profile"&&<AdminProfile api={api} onToast={showToast}/>}
         </div>
       </div>
@@ -2076,11 +2225,13 @@ function App() {
       const h = {"Content-Type":"application/json","Authorization":`Bearer ${tok}`};
       const fetchJ = (url) => fetch(API_URL+url,{headers:h}).then(r=>r.json());
       const safeGet = async (url) => { try { return await fetchJ(url); } catch(e) { return []; } };
-      const [students, payments, exams, torneos] = await Promise.all([
+      const [students, payments, exams, torneos, clases, equipo] = await Promise.all([
         safeGet("/api/alumnos"),
         safeGet("/api/pagos"),
         safeGet("/api/examenes"),
         safeGet("/api/torneos"),
+        safeGet("/api/clases"),
+        safeGet("/api/equipo"),
       ]);
       const mappedStudents = Array.isArray(students) ? students.map(a => ({
         id: a.num_control, name: a.nombre,
@@ -2091,6 +2242,11 @@ function App() {
         email: a.email || "",
         joined: a.fecha_ingreso ? a.fecha_ingreso.split('T')[0] : todayStr(), active:true,
         user: a.num_control, pass:"1234", respId: a.num_control_responsable,
+        claseId: a.id_clase ? String(a.id_clase) : null,
+        claseNombre: a.clase_nombre || null,
+        claseDias: a.clase_dias || null,
+        claseHora: a.clase_hora_inicio && a.clase_hora_fin
+          ? `${a.clase_hora_inicio.slice(0,5)} - ${a.clase_hora_fin.slice(0,5)}` : null,
         personal:{
           address: a.direccion || "",
           blood: a.tipo_sangre || "",
@@ -2126,11 +2282,30 @@ function App() {
         fecha: t.fecha ? t.fecha.split('T')[0] : todayStr(),
       })) : [];
 
+      const mappedClases = Array.isArray(clases) ? clases.map(c=>({
+        id: String(c.id_clase),
+        nombre: c.nombre||"Clase",
+        dias: c.dia_semana||"",
+        horaInicio: c.hora_inicio ? c.hora_inicio.slice(0,5) : "",
+        horaFin: c.hora_fin ? c.hora_fin.slice(0,5) : "",
+      })) : [];
+
+      const mappedEquipo = Array.isArray(equipo) ? equipo.map(e=>({
+        id: String(e.id_articulo),
+        descripcion: e.descripcion||"",
+        talla_modelo: e.talla_modelo||"",
+        precio_unitario: parseFloat(e.precio_unitario)||0,
+        stock: parseInt(e.stock)||0,
+        stock_minimo: parseInt(e.stock_minimo)||2,
+      })) : [];
+
       setDb(prev=>({...prev,
         students: mappedStudents.length>0?mappedStudents:prev.students,
         payments: mappedPayments.length>0?mappedPayments:prev.payments,
         exams: mappedExams.length>0?mappedExams:prev.exams,
         torneos: mappedTorneos.length>0?mappedTorneos:prev.torneos,
+        clases: mappedClases.length>0?mappedClases:prev.clases,
+        equipo: mappedEquipo.length>0?mappedEquipo:prev.equipo,
       }));
     } catch(e){ console.log("Usando datos locales:",e); }
   };
