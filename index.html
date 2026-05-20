@@ -547,7 +547,7 @@ function createApi(db, setDb) {
           fecha: d.fecha, nombre_examen: d.nombre_examen, sede: d.sede
         })});
       } catch(e){ console.error(e); }
-      mutate(db=>({exams:db.exams.map(x=>x.id===id?{...x,...d}:x)}));
+      mutate(db=>({exams:db.exams.map(x=>x.id===id?{...x,...d,date:d.fecha||x.date}:x)}));
     },
     // ── INVENTARIO (API real) ──
     getInventory: () => db.inventory,
@@ -2075,11 +2075,12 @@ function App() {
     try {
       const h = {"Content-Type":"application/json","Authorization":`Bearer ${tok}`};
       const fetchJ = (url) => fetch(API_URL+url,{headers:h}).then(r=>r.json());
+      const safeGet = async (url) => { try { return await fetchJ(url); } catch(e) { return []; } };
       const [students, payments, exams, torneos] = await Promise.all([
-        fetchJ("/api/alumnos"),
-        fetchJ("/api/pagos"),
-        fetchJ("/api/examenes"),
-        fetchJ("/api/torneos"),
+        safeGet("/api/alumnos"),
+        safeGet("/api/pagos"),
+        safeGet("/api/examenes"),
+        safeGet("/api/torneos"),
       ]);
       const mappedStudents = Array.isArray(students) ? students.map(a => ({
         id: a.num_control, name: a.nombre,
