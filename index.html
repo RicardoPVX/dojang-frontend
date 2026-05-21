@@ -212,12 +212,12 @@ const INIT_DB = {
     {id:"x12",sid:"s2",date:"2026-02-08",fromBelt:"Amarillo",toBelt:"Naranja",passed:false,notes:"Necesita reforzar el poomsae Taegeuk 2."},
   ],
   admin:{user:"maestro",pass:"admin123",name:"Maestro Ramírez",email:"maestro@dojang.mx",phone:"961-000-0000",dojangName:"Dojang Taekwondo Tuxtla",address:"Av. Principal 123, Tuxtla Gutiérrez"},
-  torneos: [],
   torneos:[],
   clases:[],
   equipo:[],
   instructores:[],
   lockers:[],
+  sedes:[],
   inventory: buildInitInventory(),
 };
 
@@ -620,7 +620,33 @@ function createApi(db, setDb) {
     },
     deleteTorneo: async (id) => {
       try { await apiFetch(`/api/torneos/${id}`, {method:"DELETE"}); } catch(e){ console.error(e); }
-      mutate(db=>({torneos:db.torneos.filter(t=>t.id!==id)}));
+      mutate(db=>({torneos:db.torneos.filter(t=>t.id!==id), sedes:db.sedes.filter(s=>s.torneoId!==id)}));
+    },
+    // ── SEDES ──
+    getSedes: () => db.sedes,
+    getSedesByTorneo: (torneoId) => db.sedes.filter(s=>s.torneoId===torneoId),
+    addSede: async (d) => {
+      try {
+        const resp = await apiFetch("/api/sedes", {method:"POST", body: JSON.stringify({
+          id_torneo: d.torneoId, nombre_sede: d.nombre, direccion: d.direccion, cupo_max: d.cupo_max||0
+        })});
+        if(resp?.id_sede){
+          mutate(db=>({sedes:[...db.sedes,{id:String(resp.id_sede),torneoId:d.torneoId,nombre:d.nombre,direccion:d.direccion||"",cupo_max:d.cupo_max||0,inscritos:0}]}));
+          return;
+        }
+      } catch(e){ console.error(e); }
+    },
+    updateSede: async (id,d) => {
+      try { await apiFetch(`/api/sedes/${id}`, {method:"PUT", body: JSON.stringify({nombre_sede:d.nombre,direccion:d.direccion,cupo_max:d.cupo_max||0})}); } catch(e){ console.error(e); }
+      mutate(db=>({sedes:db.sedes.map(s=>s.id===id?{...s,...d}:s)}));
+    },
+    deleteSede: async (id) => {
+      try { await apiFetch(`/api/sedes/${id}`, {method:"DELETE"}); } catch(e){ console.error(e); }
+      mutate(db=>({sedes:db.sedes.filter(s=>s.id!==id)}));
+    },
+    inscribirSede: async (sedeId, alumnoId) => {
+      try { await apiFetch(`/api/sedes/${sedeId}/inscribir`, {method:"POST", body: JSON.stringify({num_control_alumno:alumnoId})}); } catch(e){ console.error(e); }
+      mutate(db=>({sedes:db.sedes.map(s=>s.id===sedeId?{...s,inscritos:(s.inscritos||0)+1}:s)}));
     },
     // ── EXÁMENES GLOBAL ──
     getAllExamsFlat: () => db.exams.slice().sort((a,b)=>b.date.localeCompare(a.date)),
@@ -1864,6 +1890,25 @@ const ExamenFuturoForm = ({initial,onSave,onClose}) => {
   );
 };
 
+const SedeForm = ({torneoId,onSave,onClose}) => {
+  const [f,setF]=useState({nombre:"",direccion:"",cupo_max:0});
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  const submit=(e)=>{e.preventDefault();onSave(f);onClose();};
+  return(
+    <form onSubmit={submit}>
+      <div className="form-row"><div><label className="tk-label">Nombre de la sede</label><input className="tk-input" required value={f.nombre} onChange={e=>set("nombre",e.target.value)} placeholder="Ej. Polideportivo Tuxtla"/></div></div>
+      <div className="form-row form-row-2">
+        <div><label className="tk-label">Dirección</label><input className="tk-input" value={f.direccion} onChange={e=>set("direccion",e.target.value)} placeholder="Ej. Av. Central 123"/></div>
+        <div><label className="tk-label">Cupo máximo (0 = sin límite)</label><input className="tk-input" type="number" min="0" value={f.cupo_max} onChange={e=>set("cupo_max",+e.target.value)}/></div>
+      </div>
+      <div className="form-actions">
+        <button type="button" className="tk-btn btn-ghost" onClick={onClose}>Cancelar</button>
+        <button type="submit" className="tk-btn btn-red">Agregar sede</button>
+      </div>
+    </form>
+  );
+};
+
 const TorneoSimpleForm = ({initial,onSave,onClose}) => {
   const empty={nombre:"",sede:"",fecha:todayStr()};
   const [f,setF]=useState(initial||empty);
@@ -1947,6 +1992,7 @@ const AdminEvents = ({api}) => {
       {modal==="addTorneo"&&<Modal title="NUEVO TORNEO" onClose={()=>setModal(null)}><TorneoSimpleForm onSave={d=>api.addTorneo(d)} onClose={()=>setModal(null)}/></Modal>}
       {modal?.editTorneo&&<Modal title="EDITAR TORNEO" onClose={()=>setModal(null)}><TorneoSimpleForm initial={modal.editTorneo} onSave={d=>api.updateTorneo(modal.editTorneo.id,d)} onClose={()=>setModal(null)}/></Modal>}
       {modal?.delTorneo&&<ConfirmModal message="¿Eliminar este torneo?" onConfirm={()=>api.deleteTorneo(modal.delTorneo)} onClose={()=>setModal(null)}/>}
+      {modal?.addSede&&<Modal title="AGREGAR SEDE" onClose={()=>setModal(null)}><SedeForm torneoId={modal.addSede} onSave={d=>api.addSede({...d,torneoId:modal.addSede})} onClose={()=>setModal(null)}/></Modal>}
     </div>
   );
 };
@@ -2595,7 +2641,7 @@ function App() {
       const h = {"Content-Type":"application/json","Authorization":`Bearer ${tok}`};
       const fetchJ = (url) => fetch(API_URL+url,{headers:h}).then(r=>r.json());
       const safeGet = async (url) => { try { return await fetchJ(url); } catch(e) { return []; } };
-      const [students, payments, exams, torneos, clases, equipo, instructores, lockers] = await Promise.all([
+      const [students, payments, exams, torneos, clases, equipo, instructores, lockers, sedesData] = await Promise.all([
         safeGet("/api/alumnos"),
         safeGet("/api/pagos"),
         safeGet("/api/examenes"),
@@ -2604,6 +2650,7 @@ function App() {
         safeGet("/api/equipo"),
         safeGet("/api/instructores"),
         safeGet("/api/lockers"),
+        safeGet("/api/sedes"),
       ]);
       const mappedStudents = Array.isArray(students) ? students.map(a => ({
         id: a.num_control, name: a.nombre,
