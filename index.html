@@ -601,14 +601,23 @@ function createApi(db, setDb) {
     addTorneo: async (d) => {
       try {
         const resp = await apiFetch("/api/torneos", {method:"POST", body: JSON.stringify({
-          nombre_torneo: d.nombre, sede: d.sede, fecha: d.fecha
+          nombre_torneo: d.nombre, fecha: d.fecha
         })});
         if(resp?.id_torneo){
-          mutate(db=>({torneos:[...db.torneos,{...d,id:String(resp.id_torneo)}]}));
+          const torneoId = String(resp.id_torneo);
+          mutate(db=>({torneos:[...db.torneos,{id:torneoId,nombre:d.nombre,fecha:d.fecha}]}));
+          // Auto-create the sede
+          if(d.sede_nombre){
+            const respSede = await apiFetch("/api/sedes", {method:"POST", body: JSON.stringify({
+              id_torneo: resp.id_torneo, nombre_sede: d.sede_nombre, direccion: d.sede_direccion||null, cupo_max:0
+            })});
+            if(respSede?.id_sede){
+              mutate(db=>({sedes:[...db.sedes,{id:String(respSede.id_sede),torneoId,nombre:d.sede_nombre,direccion:d.sede_direccion||"",cupo_max:0,inscritos:0}]}));
+            }
+          }
           return;
         }
       } catch(e){ console.error(e); }
-      mutate(db=>({torneos:[...db.torneos,{...d,id:uid("t")}]}));
     },
     updateTorneo: async (id,d) => {
       try {
@@ -1910,18 +1919,19 @@ const SedeForm = ({torneoId,onSave,onClose}) => {
 };
 
 const TorneoSimpleForm = ({initial,onSave,onClose}) => {
-  const empty={nombre:"",sede:"",fecha:todayStr()};
+  const empty={nombre:"",fecha:todayStr(),sede_nombre:"",sede_direccion:""};
   const [f,setF]=useState(initial||empty);
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
   const submit=(e)=>{e.preventDefault();onSave(f);onClose();};
   return(
     <form onSubmit={submit}>
-      <div className="form-row">
+      <div className="form-row form-row-2">
         <div><label className="tk-label">Nombre del torneo</label><input className="tk-input" required value={f.nombre} onChange={e=>set("nombre",e.target.value)} placeholder="Ej. Torneo Regional Chiapas 2026"/></div>
+        <div><label className="tk-label">Fecha</label><input className="tk-input" type="date" required value={f.fecha} onChange={e=>set("fecha",e.target.value)}/></div>
       </div>
       <div className="form-row form-row-2">
-        <div><label className="tk-label">Fecha</label><input className="tk-input" type="date" required value={f.fecha} onChange={e=>set("fecha",e.target.value)}/></div>
-        <div><label className="tk-label">Sede</label><input className="tk-input" value={f.sede} onChange={e=>set("sede",e.target.value)} placeholder="Ej. Polideportivo Tuxtla"/></div>
+        <div><label className="tk-label">Nombre de la sede</label><input className="tk-input" required value={f.sede_nombre} onChange={e=>set("sede_nombre",e.target.value)} placeholder="Ej. Polideportivo Tuxtla"/></div>
+        <div><label className="tk-label">Dirección (opcional)</label><input className="tk-input" value={f.sede_direccion} onChange={e=>set("sede_direccion",e.target.value)} placeholder="Ej. Av. Central 123"/></div>
       </div>
       <div className="form-actions">
         <button type="button" className="tk-btn btn-ghost" onClick={onClose}>Cancelar</button>
@@ -2579,22 +2589,49 @@ const StudentPortal = ({session,api,onLogout}) => {
         {tab==="events"&&(
           <div>
             <div className="section-title" style={{marginBottom:20}}>PRÓXIMOS EVENTOS</div>
-            {events.length===0?<div className="card empty-state" style={{padding:48}}><div className="empty-icon">📅</div><div>Sin eventos próximos</div></div>:(
-              <div style={{display:"grid",gap:12,gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))"}}>
-                {events.map(ev=>{
-                  const et=EVENT_TYPE[ev.type]||EVENT_TYPE.especial;
-                  return(
-                    <div key={ev.id} className="card" style={{padding:20,borderTop:`3px solid ${et.color}`}}>
-                      <EventTypeBadge type={ev.type}/>
-                      <div style={{fontWeight:600,color:"#f0f0fa",margin:"10px 0 6px",fontSize:14,lineHeight:1.4}}>{ev.title}</div>
-                      <div style={{color:et.color,fontSize:13,fontWeight:500,marginBottom:4}}>📅 {fmtDate(ev.date)}</div>
-                      {ev.place&&<div style={{color:"#666688",fontSize:12,marginBottom:10}}>📍 {ev.place}</div>}
-                      {ev.desc&&<div style={{color:"#7070a0",fontSize:12,lineHeight:1.5,borderTop:"1px solid #1e1e2e",paddingTop:10}}>{ev.desc}</div>}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            {/* Torneos próximos */}
+            {api.getTorneos().filter(t=>t.fecha>=todayStr()).map(t=>{
+              const sedesT=api.getSedesByTorneo(t.id);
+              return(
+                <div key={t.id} className="card" style={{padding:20,marginBottom:12,borderLeft:"3px solid #60a5fa"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                    <span className="tag" style={{background:"rgba(96,165,250,.15)",color:"#60a5fa",border:"1px solid rgba(96,165,250,.3)"}}>🏆 Torneo</span>
+                    <span style={{color:"#60a5fa",fontSize:13,fontWeight:500}}>📅 {fmtDate(t.fecha)}</span>
+                  </div>
+                  <div style={{fontWeight:600,color:"#f0f0fa",fontSize:15,marginBottom:10}}>{t.nombre}</div>
+                  {sedesT.length===0
+                    ?<div style={{color:"#555577",fontSize:12}}>Sin sedes disponibles</div>
+                    :sedesT.map(s=>(
+                      <div key={s.id} style={{background:"#0e0e18",borderRadius:8,padding:"10px 14px",marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <div>
+                          <div style={{color:"#dde0ee",fontSize:13,fontWeight:500}}>📍 {s.nombre}</div>
+                          {s.direccion&&<div style={{color:"#666688",fontSize:11}}>{s.direccion}</div>}
+                          <div style={{color:"#555577",fontSize:11}}>{s.inscritos} inscrito{s.inscritos!==1?"s":""}{s.cupo_max>0?` / cupo: ${s.cupo_max}`:""}</div>
+                        </div>
+                        <button className="tk-btn btn-blue btn-sm"
+                          onClick={async()=>{await api.inscribirSede(s.id,student.id);showToast("¡Inscripción registrada!");}}
+                          style={{fontSize:11}}>Registrarme</button>
+                      </div>
+                    ))
+                  }
+                </div>
+              );
+            })}
+            {/* Eventos generales */}
+            {events.filter(e=>e.date>=todayStr()).length===0&&api.getTorneos().filter(t=>t.fecha>=todayStr()).length===0
+              ?<div className="card empty-state" style={{padding:48}}><div className="empty-icon">📅</div><div>Sin eventos próximos</div></div>
+              :events.filter(e=>e.date>=todayStr()).map(ev=>{
+                const et=EVENT_TYPE[ev.type]||EVENT_TYPE.especial;
+                return(
+                  <div key={ev.id} className="card" style={{padding:20,marginBottom:12,borderTop:`3px solid ${et.color}`}}>
+                    <EventTypeBadge type={ev.type}/>
+                    <div style={{fontWeight:600,color:"#f0f0fa",margin:"10px 0 6px",fontSize:14}}>{ev.title}</div>
+                    <div style={{color:et.color,fontSize:13,fontWeight:500,marginBottom:4}}>📅 {fmtDate(ev.date)}</div>
+                    {ev.place&&<div style={{color:"#666688",fontSize:12}}>📍 {ev.place}</div>}
+                  </div>
+                );
+              })
+            }
           </div>
         )}
 
