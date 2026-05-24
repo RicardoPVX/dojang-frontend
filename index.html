@@ -1911,6 +1911,7 @@ const TorneoSimpleForm = ({initial,onSave,onClose}) => {
 const AdminEvents = ({api}) => {
   const [tab,setTab]=useState("examenes");
   const [modal,setModal]=useState(null);
+  const [inscritosModal,setInscritosModal]=useState(null); // {torneo, data}
   const futureExams=api.getFutureExams();
   const torneos=api.getTorneos();
   return(
@@ -1947,7 +1948,10 @@ const AdminEvents = ({api}) => {
       {tab==="torneos"&&(
         <div style={{display:"grid",gap:12,gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))"}}>
           {torneos.length===0&&<div className="card empty-state" style={{padding:40,gridColumn:"1/-1"}}><div className="empty-icon">🏆</div><div>Sin torneos registrados</div></div>}
-          {torneos.map(t=>(
+          {torneos.map(t=>{
+            const sedesT=api.getSedesByTorneo(t.id);
+            const totalInscritos=sedesT.reduce((a,s)=>a+(s.inscritos||0),0);
+            return(
             <div key={t.id} className="card" style={{padding:18,borderLeft:"3px solid #60a5fa"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
                 <span className="tag" style={{background:"rgba(96,165,250,.15)",color:"#60a5fa",border:"1px solid rgba(96,165,250,.3)"}}>Torneo</span>
@@ -1957,10 +1961,21 @@ const AdminEvents = ({api}) => {
                 </div>
               </div>
               <div style={{fontWeight:600,color:"#dde0ee",marginBottom:6,fontSize:14}}>{t.nombre}</div>
-              <div style={{color:"#9090b0",fontSize:12,marginBottom:4}}>📅 {fmtDate(t.fecha)}</div>
-              {t.sede&&<div style={{color:"#666688",fontSize:11}}>📍 {t.sede}</div>}
+              <div style={{color:"#9090b0",fontSize:12,marginBottom:8}}>📅 {fmtDate(t.fecha)}</div>
+              {sedesT.length>0&&<div style={{marginBottom:8}}>
+                {sedesT.map(s=><div key={s.id} style={{fontSize:11,color:"#666688",marginBottom:2}}>📍 {s.nombre} · {s.inscritos||0} inscrito{(s.inscritos||0)!==1?"s":""}</div>)}
+              </div>}
+              <button className="tk-btn btn-blue btn-sm" style={{width:"100%",justifyContent:"center",marginTop:4}}
+                onClick={async()=>{
+                  try{
+                    const data=await fetch(API_URL+`/api/sedes/torneo/${t.id}/inscritos`,{headers:{"Authorization":`Bearer ${_token}`}}).then(r=>r.json());
+                    setInscritosModal({torneo:t,data:Array.isArray(data)?data:[]});
+                  }catch(e){setInscritosModal({torneo:t,data:[]});}
+                }}>
+                👥 Ver inscritos ({totalInscritos})
+              </button>
             </div>
-          ))}
+          );})}
         </div>
       )}
       {modal==="addExam"&&<Modal title="NUEVO EXAMEN PROGRAMADO" onClose={()=>setModal(null)}><ExamenFuturoForm onSave={d=>api.addFutureExam(d)} onClose={()=>setModal(null)}/></Modal>}
@@ -1969,6 +1984,29 @@ const AdminEvents = ({api}) => {
       {modal==="addTorneo"&&<Modal title="NUEVO TORNEO" onClose={()=>setModal(null)}><TorneoSimpleForm onSave={d=>api.addTorneo(d)} onClose={()=>setModal(null)}/></Modal>}
       {modal?.editTorneo&&<Modal title="EDITAR TORNEO" onClose={()=>setModal(null)}><TorneoSimpleForm initial={modal.editTorneo} onSave={d=>api.updateTorneo(modal.editTorneo.id,d)} onClose={()=>setModal(null)}/></Modal>}
       {modal?.delTorneo&&<ConfirmModal message="¿Eliminar este torneo?" onConfirm={()=>api.deleteTorneo(modal.delTorneo)} onClose={()=>setModal(null)}/>}
+      {inscritosModal&&<Modal title={`INSCRITOS — ${inscritosModal.torneo.nombre.toUpperCase()}`} onClose={()=>setInscritosModal(null)} lg>
+        {inscritosModal.data.length===0
+          ?<div className="empty-state" style={{padding:32}}><div className="empty-icon">👥</div><div>Sin inscritos aún</div></div>
+          :<div className="card"><table>
+            <thead><tr><th>#</th><th>Alumno</th><th>Cinturón</th><th>Sede</th><th>Fecha inscripción</th></tr></thead>
+            <tbody>
+              {inscritosModal.data.map((r,i)=>(
+                <tr key={r.id_inscripcion}>
+                  <td style={{color:"#555577"}}>{i+1}</td>
+                  <td style={{color:"#dde0ee",fontWeight:500}}>{r.alumno_nombre}</td>
+                  <td><BeltBadge belt={r.cinta_nombre||"Blanco"}/></td>
+                  <td style={{color:"#9090b0"}}>📍 {r.nombre_sede}</td>
+                  <td style={{color:"#666688",fontSize:12}}>{fmtDate(r.fecha_inscripcion?.split('T')[0])}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table></div>
+        }
+        <div style={{marginTop:14,padding:"10px 14px",background:"#0e0e18",borderRadius:8,fontSize:13,color:"#9090b0"}}>
+          Total inscritos: <strong style={{color:"#60a5fa"}}>{inscritosModal.data.length}</strong>
+        </div>
+        <div className="form-actions"><button className="tk-btn btn-ghost" onClick={()=>setInscritosModal(null)}>Cerrar</button></div>
+      </Modal>}
     </div>
   );
 };
@@ -2385,6 +2423,7 @@ const StudentPortal = ({session,api,onLogout}) => {
   const student=api.getStudent(session.id);
   const payments=api.getStudentPayments(session.id);
   const events=api.getEvents().filter(e=>e.date>=todayStr());
+  const [inscritoEnSedes, setInscritoEnSedes] = useState(new Set());
   const exams=api.getStudentExams(session.id);
   const nextExamDate=api.getNextExamDate(session.id);
   const daysToExam=daysUntil(nextExamDate);
@@ -2574,13 +2613,17 @@ const StudentPortal = ({session,api,onLogout}) => {
                           {s.direccion&&<div style={{color:"#666688",fontSize:11}}>{s.direccion}</div>}
                           <div style={{color:"#555577",fontSize:11}}>{s.inscritos||0} inscrito{(s.inscritos||0)!==1?"s":""}{s.cupo_max>0?` · cupo: ${s.cupo_max}`:""}</div>
                         </div>
-                        <button className="tk-btn btn-blue btn-sm"
-                          onClick={async()=>{
-                            await api.inscribirSede(s.id, student.id);
-                            showToast("¡Inscripción registrada!");
-                          }}>
-                          Registrarme
-                        </button>
+                        {inscritoEnSedes.has(s.id)
+                          ?<span style={{color:"#4ade80",fontSize:12,fontWeight:600}}>✓ Inscrito</span>
+                          :<button className="tk-btn btn-blue btn-sm"
+                            onClick={async()=>{
+                              await api.inscribirSede(s.id, student.id);
+                              setInscritoEnSedes(prev=>new Set([...prev, s.id]));
+                              showToast("¡Inscripción registrada!");
+                            }}>
+                            Registrarme
+                          </button>
+                        }
                       </div>
                     ))
                   }
