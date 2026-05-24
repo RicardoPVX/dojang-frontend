@@ -602,31 +602,25 @@ function createApi(db, setDb) {
     },
     prestarEquipo: async (id, alumnoId) => {
       const item = db.equipo.find(e=>e.id===id);
-      if(!item || item.stock<=0) return;
+      if(!item || item.stock<=0) return false;
       try {
-        await apiFetch(`/api/equipo/${id}/prestar`, {method:"PUT", body: JSON.stringify({num_control_alumno: alumnoId})});
-        // Reduce stock by 1
-        await apiFetch(`/api/equipo/${id}`, {method:"PUT", body: JSON.stringify({
-          descripcion: item.descripcion, talla_modelo: item.talla_modelo,
-          precio_unitario: item.precio_unitario, stock: item.stock-1,
-          stock_minimo: item.stock_minimo
-        })});
-        const alumnoNombre = db.students.find(s=>s.id===alumnoId)?.name||alumnoId;
-        mutate(db=>({equipo:db.equipo.map(e=>e.id===id?{...e,alumnoId,alumnoNombre,fechaPrestamo:todayStr(),stock:e.stock-1}:e)}));
+        const resp = await apiFetch(`/api/equipo/${id}/prestar`, {method:"POST", body: JSON.stringify({num_control_alumno: alumnoId})});
+        if(resp?.id_prestamo){
+          const alumnoNombre = db.students.find(s=>s.id===alumnoId)?.name||alumnoId;
+          const nuevoPrestamo = {id:String(resp.id_prestamo),alumnoId,alumnoNombre,fecha:todayStr()};
+          mutate(db=>({equipo:db.equipo.map(e=>e.id===id?{...e,stock:e.stock-1,prestamos:[...(e.prestamos||[]),nuevoPrestamo]}:e)}));
+          return true;
+        }
       } catch(e){ console.error(e); }
+      return false;
     },
-    liberarEquipo: async (id) => {
-      const item = db.equipo.find(e=>e.id===id);
+    liberarEquipo: async (idArticulo, idPrestamo) => {
       try {
-        await apiFetch(`/api/equipo/${id}/liberar`, {method:"PUT"});
-        // Return stock by 1
-        if(item) await apiFetch(`/api/equipo/${id}`, {method:"PUT", body: JSON.stringify({
-          descripcion: item.descripcion, talla_modelo: item.talla_modelo,
-          precio_unitario: item.precio_unitario, stock: item.stock+1,
-          stock_minimo: item.stock_minimo
-        })});
+        await apiFetch(`/api/equipo/prestamos/${idPrestamo}`, {method:"DELETE"});
+        mutate(db=>({equipo:db.equipo.map(e=>e.id===idArticulo
+          ?{...e,stock:e.stock+1,prestamos:(e.prestamos||[]).filter(p=>p.id!==idPrestamo)}
+          :e)}));
       } catch(e){ console.error(e); }
-      mutate(db=>({equipo:db.equipo.map(e=>e.id===id?{...e,alumnoId:null,alumnoNombre:null,fechaPrestamo:null,stock:e.stock+1}:e)}));
     },
     // ── TORNEOS (local) ──
     getTorneos: () => db.torneos,
@@ -1126,7 +1120,6 @@ const AdminInventory = ({api,onToast}) => {
             {equipo.map(item=>{
               const sc=item.stock===0?"stock-out":item.stock<=item.stock_minimo?"stock-low":"stock-ok";
               const sl=item.stock===0?"SIN STOCK":item.stock<=item.stock_minimo?"STOCK BAJO":"EN STOCK";
-              const prestado=!!item.alumnoId;
               return(
                 <tr key={item.id}>
                   <td style={{color:"#dde0ee",fontWeight:500}}>{item.descripcion}</td>
@@ -1138,15 +1131,20 @@ const AdminInventory = ({api,onToast}) => {
                     <button className="qty-btn" onClick={()=>api.adjustStock(item.id,1)}>+</button>
                   </div></td>
                   <td><span className={`stock-badge ${sc}`}>{sl}</span></td>
-                  <td>
-                    {prestado
-                      ?<div>
-                        <div style={{color:"#f87171",fontSize:12,fontWeight:500}}>{api.getStudents().find(s=>s.id===item.alumnoId)?.name||item.alumnoId}</div>
-                        <div style={{color:"#555577",fontSize:11}}>desde {fmtDate(item.fechaPrestamo)}</div>
-                        <button className="tk-btn btn-ghost btn-sm" style={{marginTop:4,fontSize:11}} onClick={()=>api.liberarEquipo(item.id)}>Liberar</button>
-                      </div>
-                      :<button className="tk-btn btn-blue btn-sm" onClick={()=>setModal({prestar:item})}>Prestar</button>
-                    }
+                  <td style={{minWidth:160}}>
+                    {(item.prestamos||[]).length>0&&<div style={{marginBottom:6}}>
+                      {(item.prestamos||[]).map(p=>(
+                        <div key={p.id} style={{display:"flex",alignItems:"center",gap:6,marginBottom:4,background:"rgba(239,68,68,.08)",padding:"4px 8px",borderRadius:6}}>
+                          <div style={{flex:1}}>
+                            <div style={{color:"#f87171",fontSize:11,fontWeight:500}}>{p.alumnoNombre}</div>
+                            <div style={{color:"#555577",fontSize:10}}>{fmtDate(p.fecha)}</div>
+                          </div>
+                          <button className="tk-btn btn-ghost btn-sm" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>api.liberarEquipo(item.id,p.id)}>✕</button>
+                        </div>
+                      ))}
+                    </div>}
+                    {item.stock>0&&<button className="tk-btn btn-blue btn-sm" style={{fontSize:11}} onClick={()=>setModal({prestar:item})}>+ Prestar</button>}
+                    {item.stock<=0&&(item.prestamos||[]).length===0&&<span style={{color:"#555577",fontSize:11}}>Sin stock</span>}
                   </td>
                   <td><div style={{display:"flex",gap:5}}>
                     <button className="tk-btn btn-ghost btn-sm" onClick={()=>setModal({edit:item})}><Icon name="edit" size={13}/></button>
@@ -2713,7 +2711,7 @@ const StudentPortal = ({session,api,onLogout}) => {
           <div>
             <div className="section-title" style={{marginBottom:20}}>MI EQUIPO PRESTADO</div>
             {(()=>{
-              const miEquipo = api.getEquipo().filter(e=>e.alumnoId===student.id);
+              const miEquipo = api.getEquipo().flatMap(e=>(e.prestamos||[]).filter(p=>p.alumnoId===student.id).map(p=>({...e,prestamo:p})));
               if(miEquipo.length===0) return(
                 <div className="card empty-state" style={{padding:48}}>
                   <div className="empty-icon">🥋</div>
@@ -2724,13 +2722,13 @@ const StudentPortal = ({session,api,onLogout}) => {
               return(
                 <div style={{display:"grid",gap:12}}>
                   {miEquipo.map(e=>(
-                    <div key={e.id} className="card" style={{padding:18,borderLeft:"3px solid #c01212",display:"flex",alignItems:"center",gap:16}}>
+                    <div key={e.prestamo.id} className="card" style={{padding:18,borderLeft:"3px solid #c01212",display:"flex",alignItems:"center",gap:16}}>
                       <div style={{fontSize:28}}>🥋</div>
                       <div style={{flex:1}}>
                         <div style={{color:"#f0f0fa",fontWeight:600,fontSize:15}}>{e.descripcion}</div>
                         <div style={{color:"#9090b0",fontSize:12,marginTop:4}}>
                           {e.talla_modelo&&<span>Talla: {e.talla_modelo} · </span>}
-                          Prestado el <span style={{color:"#dde0ee"}}>{fmtDate(e.fechaPrestamo)}</span>
+                          Prestado el <span style={{color:"#dde0ee"}}>{fmtDate(e.prestamo.fecha)}</span>
                         </div>
                       </div>
                       <span style={{background:"rgba(239,68,68,.15)",color:"#f87171",padding:"4px 12px",borderRadius:20,fontSize:12,fontWeight:600,border:"1px solid rgba(239,68,68,.3)"}}>En préstamo</span>
@@ -2858,8 +2856,12 @@ function App() {
         precio_unitario: parseFloat(e.precio_unitario)||0,
         stock: parseInt(e.stock)||0,
         stock_minimo: parseInt(e.stock_minimo)||2,
-        alumnoId: e.num_control_alumno_prestamo||null,
-        fechaPrestamo: e.fecha_prestamo ? e.fecha_prestamo.split('T')[0] : null,
+        prestamos: Array.isArray(e.prestamos) ? e.prestamos.map(p=>({
+          id: String(p.id_prestamo),
+          alumnoId: p.num_control_alumno,
+          alumnoNombre: p.alumno_nombre||p.num_control_alumno,
+          fecha: p.fecha_prestamo ? p.fecha_prestamo.split('T')[0] : todayStr(),
+        })) : [],
       })) : [];
 
       const mappedInstructores = Array.isArray(instructores) ? instructores.map(i=>({
