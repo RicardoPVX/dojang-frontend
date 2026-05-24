@@ -596,6 +596,17 @@ function createApi(db, setDb) {
       } catch(e){ console.error(e); }
       mutate(db=>({equipo:db.equipo.map(e=>e.id===id?{...e,stock:newStock}:e)}));
     },
+    prestarEquipo: async (id, alumnoId) => {
+      try {
+        await apiFetch(`/api/equipo/${id}/prestar`, {method:"PUT", body: JSON.stringify({num_control_alumno: alumnoId})});
+        const alumnoNombre = db.students.find(s=>s.id===alumnoId)?.name||alumnoId;
+        mutate(db=>({equipo:db.equipo.map(e=>e.id===id?{...e,alumnoId,alumnoNombre,fechaPrestamo:todayStr()}:e)}));
+      } catch(e){ console.error(e); }
+    },
+    liberarEquipo: async (id) => {
+      try { await apiFetch(`/api/equipo/${id}/liberar`, {method:"PUT"}); } catch(e){ console.error(e); }
+      mutate(db=>({equipo:db.equipo.map(e=>e.id===id?{...e,alumnoId:null,alumnoNombre:null,fechaPrestamo:null}:e)}));
+    },
     // ── TORNEOS (local) ──
     getTorneos: () => db.torneos,
     addTorneo: async (d) => {
@@ -1095,11 +1106,12 @@ const AdminInventory = ({api,onToast}) => {
       {equipo.length===0
         ?<div className="card empty-state" style={{padding:48}}><div className="empty-icon">📦</div><div>Sin artículos en inventario</div><div style={{fontSize:12,marginTop:8,color:"#333355"}}>Agrega artículos con "+ Nuevo artículo"</div></div>
         :<div className="card"><table>
-          <thead><tr><th>Descripción</th><th>Talla/Modelo</th><th>Precio</th><th>Stock</th><th>Estado</th><th></th></tr></thead>
+          <thead><tr><th>Descripción</th><th>Talla/Modelo</th><th>Precio</th><th>Stock</th><th>Estado</th><th>Préstamo</th><th></th></tr></thead>
           <tbody>
             {equipo.map(item=>{
               const sc=item.stock===0?"stock-out":item.stock<=item.stock_minimo?"stock-low":"stock-ok";
               const sl=item.stock===0?"SIN STOCK":item.stock<=item.stock_minimo?"STOCK BAJO":"EN STOCK";
+              const prestado=!!item.alumnoId;
               return(
                 <tr key={item.id}>
                   <td style={{color:"#dde0ee",fontWeight:500}}>{item.descripcion}</td>
@@ -1111,6 +1123,16 @@ const AdminInventory = ({api,onToast}) => {
                     <button className="qty-btn" onClick={()=>api.adjustStock(item.id,1)}>+</button>
                   </div></td>
                   <td><span className={`stock-badge ${sc}`}>{sl}</span></td>
+                  <td>
+                    {prestado
+                      ?<div>
+                        <div style={{color:"#f87171",fontSize:12,fontWeight:500}}>{api.getStudents().find(s=>s.id===item.alumnoId)?.name||item.alumnoId}</div>
+                        <div style={{color:"#555577",fontSize:11}}>desde {fmtDate(item.fechaPrestamo)}</div>
+                        <button className="tk-btn btn-ghost btn-sm" style={{marginTop:4,fontSize:11}} onClick={()=>api.liberarEquipo(item.id)}>Liberar</button>
+                      </div>
+                      :<button className="tk-btn btn-blue btn-sm" onClick={()=>setModal({prestar:item})}>Prestar</button>
+                    }
+                  </td>
                   <td><div style={{display:"flex",gap:5}}>
                     <button className="tk-btn btn-ghost btn-sm" onClick={()=>setModal({edit:item})}><Icon name="edit" size={13}/></button>
                     <button className="tk-btn btn-danger btn-sm" onClick={()=>setModal({del:item.id})}><Icon name="trash" size={13}/></button>
@@ -1124,6 +1146,24 @@ const AdminInventory = ({api,onToast}) => {
       {modal==="add"&&<Modal title="NUEVO ARTÍCULO" onClose={()=>setModal(null)}><EquipoForm onSave={d=>api.addEquipoItem(d)} onClose={()=>setModal(null)}/></Modal>}
       {modal?.edit&&<Modal title="EDITAR ARTÍCULO" onClose={()=>setModal(null)}><EquipoForm initial={modal.edit} onSave={d=>api.updateEquipoItem(modal.edit.id,d)} onClose={()=>setModal(null)}/></Modal>}
       {modal?.del&&<ConfirmModal message="¿Eliminar este artículo del inventario?" onConfirm={()=>api.deleteEquipoItem(modal.del)} onClose={()=>setModal(null)}/>}
+      {modal?.prestar&&<Modal title="PRESTAR EQUIPO" onClose={()=>setModal(null)}>
+        <div style={{marginBottom:14,color:"#9090b0",fontSize:13}}>
+          Artículo: <strong style={{color:"#f0f0fa"}}>{modal.prestar.descripcion} {modal.prestar.talla_modelo||""}</strong>
+        </div>
+        <div className="form-row"><div><label className="tk-label">Alumno</label>
+          <select className="tk-input" id="prestar-alumno-select">
+            <option value="">— Seleccionar alumno —</option>
+            {api.getStudents().map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div></div>
+        <div className="form-actions">
+          <button className="tk-btn btn-ghost" onClick={()=>setModal(null)}>Cancelar</button>
+          <button className="tk-btn btn-red" onClick={()=>{
+            const sel=document.getElementById("prestar-alumno-select")?.value;
+            if(sel){api.prestarEquipo(modal.prestar.id,sel);setModal(null);}
+          }}>Confirmar préstamo</button>
+        </div>
+      </Modal>}
     </div>
   );
 };
@@ -2766,6 +2806,8 @@ function App() {
         precio_unitario: parseFloat(e.precio_unitario)||0,
         stock: parseInt(e.stock)||0,
         stock_minimo: parseInt(e.stock_minimo)||2,
+        alumnoId: e.num_control_alumno_prestamo||null,
+        fechaPrestamo: e.fecha_prestamo ? e.fecha_prestamo.split('T')[0] : null,
       })) : [];
 
       const mappedInstructores = Array.isArray(instructores) ? instructores.map(i=>({
