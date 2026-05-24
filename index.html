@@ -212,8 +212,8 @@ const INIT_DB = {
     {id:"x12",sid:"s2",date:"2026-02-08",fromBelt:"Amarillo",toBelt:"Naranja",passed:false,notes:"Necesita reforzar el poomsae Taegeuk 2."},
   ],
   admin:{user:"maestro",pass:"admin123",name:"Maestro Ramírez",email:"maestro@dojang.mx",phone:"961-000-0000",dojangName:"Dojang Taekwondo Tuxtla",address:"Av. Principal 123, Tuxtla Gutiérrez"},
-  torneos: [],
   torneos:[],
+  sedes:[],
   clases:[],
   equipo:[],
   instructores:[],
@@ -620,7 +620,29 @@ function createApi(db, setDb) {
     },
     deleteTorneo: async (id) => {
       try { await apiFetch(`/api/torneos/${id}`, {method:"DELETE"}); } catch(e){ console.error(e); }
-      mutate(db=>({torneos:db.torneos.filter(t=>t.id!==id)}));
+      mutate(db=>({torneos:db.torneos.filter(t=>t.id!==id), sedes:db.sedes.filter(s=>s.torneoId!==id)}));
+    },
+    getSedes: () => db.sedes,
+    getSedesByTorneo: (torneoId) => (db.sedes||[]).filter(s=>s.torneoId===String(torneoId)),
+    addSede: async (d) => {
+      try {
+        const resp = await apiFetch("/api/sedes", {method:"POST", body: JSON.stringify({
+          id_torneo: d.torneoId, nombre_sede: d.nombre, direccion: d.direccion||null, cupo_max: d.cupo_max||0
+        })});
+        if(resp?.id_sede){
+          mutate(db=>({sedes:[...(db.sedes||[]),{id:String(resp.id_sede),torneoId:String(d.torneoId),nombre:d.nombre,direccion:d.direccion||"",cupo_max:d.cupo_max||0,inscritos:0}]}));
+        }
+      } catch(e){ console.error(e); }
+    },
+    deleteSede: async (id) => {
+      try { await apiFetch(`/api/sedes/${id}`, {method:"DELETE"}); } catch(e){ console.error(e); }
+      mutate(db=>({sedes:(db.sedes||[]).filter(s=>s.id!==id)}));
+    },
+    inscribirSede: async (sedeId, alumnoId) => {
+      try {
+        await apiFetch(`/api/sedes/${sedeId}/inscribir`, {method:"POST", body: JSON.stringify({num_control_alumno:alumnoId})});
+        mutate(db=>({sedes:(db.sedes||[]).map(s=>s.id===String(sedeId)?{...s,inscritos:(s.inscritos||0)+1}:s)}));
+      } catch(e){ console.error(e); }
     },
     // ── EXÁMENES GLOBAL ──
     getAllExamsFlat: () => db.exams.slice().sort((a,b)=>b.date.localeCompare(a.date)),
@@ -2626,7 +2648,7 @@ function App() {
       const h = {"Content-Type":"application/json","Authorization":`Bearer ${tok}`};
       const fetchJ = (url) => fetch(API_URL+url,{headers:h}).then(r=>r.json());
       const safeGet = async (url) => { try { return await fetchJ(url); } catch(e) { return []; } };
-      const [students, payments, exams, torneos, clases, equipo, instructores, lockers] = await Promise.all([
+      const [students, payments, exams, torneos, clases, equipo, instructores, lockers, sedesData] = await Promise.all([
         safeGet("/api/alumnos"),
         safeGet("/api/pagos"),
         safeGet("/api/examenes"),
@@ -2635,6 +2657,7 @@ function App() {
         safeGet("/api/equipo"),
         safeGet("/api/instructores"),
         safeGet("/api/lockers"),
+        safeGet("/api/sedes"),
       ]);
       const mappedStudents = Array.isArray(students) ? students.map(a => ({
         id: a.num_control, name: a.nombre,
@@ -2732,6 +2755,11 @@ function App() {
         equipo: mappedEquipo.length>0?mappedEquipo:prev.equipo,
         instructores: mappedInstructores.length>0?mappedInstructores:prev.instructores,
         lockers: mappedLockers.length>0?mappedLockers:prev.lockers,
+        sedes: Array.isArray(sedesData) && sedesData.length>0 ? sedesData.map(s=>({
+          id: String(s.id_sede), torneoId: String(s.id_torneo),
+          nombre: s.nombre_sede||"", direccion: s.direccion||"",
+          cupo_max: s.cupo_max||0, inscritos: s.inscritos||0
+        })) : prev.sedes||[],
         admin: myInstr ? {...prev.admin, cargo:myInstr.cargo, grado_cinta:myInstr.grado_cinta, phone:myInstr.telefono||prev.admin.phone, email:myInstr.email||prev.admin.email} : prev.admin,
       }));
     } catch(e){ console.log("Usando datos locales:",e); }
