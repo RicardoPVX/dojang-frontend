@@ -627,14 +627,28 @@ function createApi(db, setDb) {
     addTorneo: async (d) => {
       try {
         const resp = await apiFetch("/api/torneos", {method:"POST", body: JSON.stringify({
-          nombre_torneo: d.nombre, sede: d.sede, fecha: d.fecha
+          nombre_torneo: d.nombre, fecha: d.fecha
         })});
         if(resp?.id_torneo){
-          mutate(db=>({torneos:[...db.torneos,{...d,id:String(resp.id_torneo)}]}));
+          const torneoId = String(resp.id_torneo);
+          mutate(db=>({torneos:[...db.torneos,{id:torneoId,nombre:d.nombre,fecha:d.fecha,sede:d.sede}]}));
+          // Auto-crear sede si se proporcionó
+          if(d.sede){
+            try {
+              const respSede = await apiFetch("/api/sedes", {method:"POST", body: JSON.stringify({
+                id_torneo: resp.id_torneo, nombre_sede: d.sede, cupo_max: 0
+              })});
+              if(respSede?.id_sede){
+                mutate(db=>({sedes:[...(db.sedes||[]),{
+                  id:String(respSede.id_sede), torneoId,
+                  nombre:d.sede, direccion:"", cupo_max:0, inscritos:0
+                }]}));
+              }
+            } catch(e2){ console.error("Error creando sede:",e2); }
+          }
           return;
         }
       } catch(e){ console.error(e); }
-      mutate(db=>({torneos:[...db.torneos,{...d,id:uid("t")}]}));
     },
     updateTorneo: async (id,d) => {
       try {
