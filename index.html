@@ -302,7 +302,7 @@ function createApi(db, setDb) {
         });
         if(data.token) {
           _token = data.token;
-          return {role: data.rol === "admin" ? "admin" : data.rol, name: user, id: user};
+          return {role: data.rol === "admin" ? "admin" : data.rol === "instructor" ? "maestro" : data.rol, name: user, id: user};
         }
         return null;
       } catch(e) { return null; }
@@ -861,6 +861,17 @@ const LoginPage = ({onLogin, db}) => {
         match = {user: alumno.num_control || alumno.user || alumno.id, role: "alumno", nombre: alumno.nombre || alumno.name, periodo: ""};
       }
     }
+    // Si no es admin ni alumno, buscar en los maestros (instructores)
+    if (!match) {
+      try {
+        const res = await fetch(API_URL + "/api/instructores/publico");
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          const maestro = data.find(m => m.username === trimmed);
+          if (maestro) match = {user: maestro.username, role: "maestro", nombre: maestro.nombre};
+        }
+      } catch(_) {}
+    }
     if (!match) {
       setErr("");
       triggerShake();
@@ -1134,7 +1145,7 @@ const StudentForm = ({initial,onSave,onClose,api}) => {
 };
 
 // ─── ADMIN ALUMNOS ────────────────────────────────────────────────────────────
-const AdminStudents = ({api}) => {
+const AdminStudents = ({api,role}) => {
   const [modal,setModal]=useState(null);const [search,setSearch]=useState("");
   const students=api.getStudents();
   const filtered=students.filter(s=>s.name.toLowerCase().includes(search.toLowerCase())||s.parent.toLowerCase().includes(search.toLowerCase()));
@@ -1165,7 +1176,7 @@ const AdminStudents = ({api}) => {
                     <div style={{display:"flex",gap:5}}>
                       <button className="tk-btn btn-blue btn-sm" title="Exámenes" onClick={()=>setModal({exams:s})}><Icon name="diploma" size={13}/></button>
                       <button className="tk-btn btn-ghost btn-sm" onClick={()=>setModal({edit:s})}><Icon name="edit" size={13}/></button>
-                      <button className="tk-btn btn-danger btn-sm" onClick={()=>setModal({del:s.id})}><Icon name="trash" size={13}/></button>
+                      {role!=="maestro"&&<button className="tk-btn btn-danger btn-sm" onClick={()=>setModal({del:s.id})}><Icon name="trash" size={13}/></button>}
                     </div>
                   </td>
                 </tr>
@@ -1299,25 +1310,26 @@ const AdminEvents = ({api}) => {
 };
 
 // ─── ADMIN HOME ───────────────────────────────────────────────────────────────
-const AdminHome = ({api,setTab}) => {
+const AdminHome = ({api,setTab,role}) => {
+  const isMaestro = role==="maestro";
   const students=api.getStudents();const payments=api.getPayments();const events=api.getEvents();const ts=todayStr();
   const examSoon=students.filter(s=>{const d=daysUntil(api.getNextExamDate(s.id));return d>=0&&d<=14;});
   const inv=api.getInventory();
   const outStock=INV_CATEGORIES.reduce((a,c)=>a+c.items.filter(it=>{const d=inv[it.id];return!d||d.qty===0;}).length,0);
   const stats=[
     {label:"Alumnos activos",value:students.filter(s=>s.active).length,color:"#c01212"},
-    {label:"Pagos en proceso",value:payments.filter(p=>p.status==="en_proceso").length,color:"#d4960f"},
-    {label:"Pagos vencidos",value:payments.filter(p=>p.status==="vencido").length,color:"#f87171"},
-    {label:"Próx. eventos",value:events.filter(e=>e.date>=ts).length,color:"#60a5fa"},
-    {label:"Inv. sin stock",value:outStock,color:"#c084fc"},
-  ];
+    {label:"Pagos en proceso",value:payments.filter(p=>p.status==="en_proceso").length,color:"#d4960f",adminOnly:true},
+    {label:"Pagos vencidos",value:payments.filter(p=>p.status==="vencido").length,color:"#f87171",adminOnly:true},
+    {label:"Próx. eventos",value:events.filter(e=>e.date>=ts).length,color:"#60a5fa",adminOnly:true},
+    {label:"Inv. sin stock",value:outStock,color:"#c084fc",adminOnly:true},
+  ].filter(s=>!s.adminOnly||!isMaestro);
   const getName=(sid)=>students.find(s=>s.id===sid)?.name||"—";
   const pending=payments.filter(p=>p.status==="en_proceso").slice(0,3);
   const coming=events.filter(e=>e.date>=ts).slice(0,3);
   return(
     <div>
       <div className="section-title" style={{marginBottom:20}}>RESUMEN GENERAL</div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:12,marginBottom:20}}>
+      <div style={{display:"grid",gridTemplateColumns:`repeat(${stats.length},1fr)`,gap:12,marginBottom:20}}>
         {stats.map(s=>(
           <div key={s.label} className="stat-card" style={{cursor:s.label.includes("Inv")?"pointer":"default"}} onClick={()=>s.label.includes("Inv")&&setTab("inventory")}>
             <div className="stat-value" style={{color:s.color}}>{s.value}</div>
@@ -1334,13 +1346,13 @@ const AdminHome = ({api,setTab}) => {
           </div>
         </div>
       )}
-      {outStock>0&&(
+      {!isMaestro&&outStock>0&&(
         <div style={{background:"rgba(192,0,192,.06)",border:"1px solid rgba(192,0,192,.25)",borderRadius:10,padding:"12px 18px",marginBottom:20,display:"flex",alignItems:"center",gap:12,cursor:"pointer"}} onClick={()=>setTab("inventory")}>
           <div style={{fontSize:20}}>📦</div>
           <div style={{color:"#c084fc",fontWeight:600,fontSize:13}}>{outStock} artículo{outStock!==1?"s":""} sin stock en inventario — <span style={{textDecoration:"underline"}}>ver inventario</span></div>
         </div>
       )}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+      {!isMaestro&&(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
         <div className="card" style={{padding:20}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
             <div style={{fontWeight:600,color:"#dde0ee",fontSize:13,letterSpacing:.5,textTransform:"uppercase"}}>Pagos pendientes</div>
@@ -1368,13 +1380,14 @@ const AdminHome = ({api,setTab}) => {
             );
           })}
         </div>
-      </div>
+      </div>)}
     </div>
   );
 };
 
 // ─── ADMIN LAYOUT ─────────────────────────────────────────────────────────────
 const AdminLayout = ({session,api,onLogout}) => {
+  const isMaestro = session.role==="maestro";
   const [tab,setTab]=useState("home");
   const [toast,setToast]=useState(null);
   const [sideOpen,setSideOpen]=useState(false);
@@ -1382,11 +1395,11 @@ const AdminLayout = ({session,api,onLogout}) => {
   const nav=[
     {id:"home",label:"Dashboard",icon:"home"},
     {id:"students",label:"Alumnos",icon:"users"},
-    {id:"payments",label:"Pagos",icon:"payment"},
-    {id:"events",label:"Eventos",icon:"calendar"},
-    {id:"inventory",label:"Inventario",icon:"box"},
+    {id:"payments",label:"Pagos",icon:"payment",adminOnly:true},
+    {id:"events",label:"Eventos",icon:"calendar",adminOnly:true},
+    {id:"inventory",label:"Inventario",icon:"box",adminOnly:true},
     {id:"profile",label:"Mi Perfil",icon:"settings"},
-  ];
+  ].filter(item=>!item.adminOnly||!isMaestro);
   const goTab=(id)=>{setTab(id);setSideOpen(false);};
   return(
     <div style={{display:"flex",minHeight:"100vh"}}>
@@ -1395,7 +1408,7 @@ const AdminLayout = ({session,api,onLogout}) => {
         <div style={{marginBottom:32,paddingLeft:8}}>
           <div style={{fontSize:24,marginBottom:4}}>🥋</div>
           <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,letterSpacing:2,color:"#f0f0fa"}}>DOJANG</div>
-          <div style={{fontSize:10,color:"#444466",letterSpacing:1.5,textTransform:"uppercase"}}>Panel Admin</div>
+          <div style={{fontSize:10,color:"#444466",letterSpacing:1.5,textTransform:"uppercase"}}>{isMaestro?"Panel Maestro":"Panel Admin"}</div>
         </div>
         <nav style={{flex:1}}>
           {nav.map(item=>(
@@ -1407,7 +1420,7 @@ const AdminLayout = ({session,api,onLogout}) => {
         <div style={{borderTop:"1px solid #1a1a28",paddingTop:16}}>
           <div style={{paddingLeft:8,marginBottom:12}}>
             <div style={{fontSize:12,color:"#dde0ee",fontWeight:500}}>{session.name}</div>
-            <div style={{fontSize:11,color:"#444466"}}>Administrador</div>
+            <div style={{fontSize:11,color:"#444466"}}>{isMaestro?"Maestro":"Administrador"}</div>
           </div>
           <div className="nav-item" onClick={onLogout}><Icon name="logout" size={16}/>Cerrar sesión</div>
         </div>
@@ -1417,11 +1430,11 @@ const AdminLayout = ({session,api,onLogout}) => {
           <button className="hamburger" onClick={()=>setSideOpen(true)}>☰</button>
           <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,letterSpacing:2,color:"#f0f0fa"}}>DOJANG</div>
         </div>
-        {tab==="home"&&<AdminHome api={api} setTab={setTab}/>}
-        {tab==="students"&&<AdminStudents api={api}/>}
-        {tab==="payments"&&<AdminPayments api={api}/>}
-        {tab==="events"&&<AdminEvents api={api}/>}
-        {tab==="inventory"&&<AdminInventory api={api} onToast={showToast}/>}
+        {tab==="home"&&<AdminHome api={api} setTab={setTab} role={session.role}/>}
+        {tab==="students"&&<AdminStudents api={api} role={session.role}/>}
+        {tab==="payments"&&!isMaestro&&<AdminPayments api={api}/>}
+        {tab==="events"&&!isMaestro&&<AdminEvents api={api}/>}
+        {tab==="inventory"&&!isMaestro&&<AdminInventory api={api} onToast={showToast}/>}
         {tab==="profile"&&<AdminProfile api={api} onToast={showToast}/>}
       </div>
       {toast&&<Toast msg={toast} onDone={()=>setToast(null)}/>}
@@ -1770,7 +1783,7 @@ function App() {
     </div>
   );
   if(!session) return <LoginPage onLogin={handleLogin} db={db}/>;
-  if(session.role==="admin") return <AdminLayout session={session} api={api} onLogout={()=>setSession(null)}/>;
+  if(session.role==="admin"||session.role==="maestro") return <AdminLayout session={session} api={api} onLogout={()=>setSession(null)}/>;
   return <StudentPortal session={session} api={api} onLogout={()=>setSession(null)}/>;
 }
 
