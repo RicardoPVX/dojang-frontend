@@ -1539,7 +1539,7 @@ const AdminStudents = ({api,isMaestro}) => {
                 <tr key={s.id}>
                   <td><span style={{color:"#dde0ee",fontWeight:500}}>{s.name}</span></td>
                   <td>{s.age} años</td><td><BeltBadge belt={s.belt}/></td>
-                  <td>{s.claseNombre?<div style={{fontSize:11}}><div style={{color:"#dde0ee",fontWeight:500}}>{s.claseNombre}</div><div style={{color:"#666688"}}>{s.claseHora}</div></div>:<span style={{color:"#444466"}}>—</span>}</td>
+                  <td>{s.claseNombre?<div style={{fontSize:11}}><div style={{color:"#dde0ee",fontWeight:500}}>{s.claseNombre}</div>{s.claseDias&&<div style={{color:"#9090b0"}}>{s.claseDias}</div>}<div style={{color:"#666688"}}>{s.claseHora}</div></div>:<span style={{color:"#444466"}}>—</span>}</td>
                   <td>{s.parent}</td>
                   <td style={{fontFamily:"monospace"}}>{s.phone}</td><td>{fmtDate(s.joined)}</td>
                   <td><span style={{color:col,fontSize:12,fontWeight:500}}>{fmtDate(nd)}</span><span style={{color:"#555577",fontSize:11,display:"block"}}>{dys>=0?`en ${dys}d`:`hace ${Math.abs(dys)}d`}</span></td>
@@ -2520,7 +2520,7 @@ const StudentPortal = ({session,api,onLogout}) => {
                   <div><div style={{color:"#f0f0fa",fontWeight:600,fontSize:16}}>{student.name}</div><BeltBadge belt={student.belt}/></div>
                 </div>
                 <div style={{display:"grid",gap:10}}>
-                  {[{label:"Edad",value:`${student.age} años`},{label:"Fecha de ingreso",value:fmtDate(student.joined)},{label:"Exámenes aprobados",value:`${approvedExams}`},{label:"Estatus",value:student.active?"Activo ✓":"Inactivo"}].map(row=>(
+                  {[{label:"Edad",value:`${student.age} años`},{label:"Fecha de ingreso",value:fmtDate(student.joined)},...(student.claseNombre?[{label:"Clase",value:student.claseNombre}]:[]),...(student.claseDias?[{label:"Días",value:student.claseDias}]:[]),...(student.claseHora?[{label:"Horario",value:student.claseHora}]:[]),{label:"Exámenes aprobados",value:`${approvedExams}`},{label:"Estatus",value:student.active?"Activo ✓":"Inactivo"}].map(row=>(
                     <div key={row.label} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid #151520"}}>
                       <span style={{color:"#555577",fontSize:12}}>{row.label}</span><span style={{color:"#dde0ee",fontSize:13}}>{row.value}</span>
                     </div>
