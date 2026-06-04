@@ -542,6 +542,10 @@ function createApi(db, setDb) {
     },
     // ── CLASES ──
     getClases: () => db.clases,
+    enviarDuda: async (d) => { await apiFetch(`/api/dudas`, {method:"POST", body: JSON.stringify(d)}); },
+    getDudas: async () => { const r = await apiFetch(`/api/dudas`); return Array.isArray(r)?r:[]; },
+    markDudaLeida: async (id) => { await apiFetch(`/api/dudas/${id}/leido`, {method:"PUT"}); },
+    deleteDuda: async (id) => { await apiFetch(`/api/dudas/${id}`, {method:"DELETE"}); },
     addClass: async (d) => {
       try {
         const resp = await apiFetch("/api/clases", {method:"POST", body: JSON.stringify({
@@ -2150,6 +2154,7 @@ const AdminLayout = ({session,api,onLogout,isMaestro}) => {
     {id:"events",label:"Agenda",icon:"calendar"},
     {id:"clases",label:"Clases",icon:"clock"},
     {id:"inventory",label:"Inventario",icon:"box"},
+    {id:"mensajes",label:"Buzón",icon:"bell"},
     {id:"profile",label:"Mi Perfil",icon:"settings"},
   ];
   // El maestro solo ve: Dashboard, Alumnos y Clases
@@ -2201,6 +2206,7 @@ const AdminLayout = ({session,api,onLogout,isMaestro}) => {
           {!isMaestro&&tab==="events"&&<AdminEvents api={api}/>}
           {tab==="clases"&&<AdminClases api={api}/>}
           {!isMaestro&&tab==="inventory"&&<AdminInventory api={api} onToast={showToast}/>}
+          {!isMaestro&&tab==="mensajes"&&<AdminBuzon api={api}/>}
           {!isMaestro&&tab==="profile"&&<AdminProfile api={api} onToast={showToast} session={session}/>}
         </div>
       </div>
@@ -2466,10 +2472,87 @@ const StudentPersonalEdit = ({student,api,onToast,onClose}) => {
   );
 };
 
+const WHATSAPP_ADMIN = "529612087231"; // WhatsApp del maestro admin (sin + ni espacios)
+const DudaModal = ({student,api,onToast,onClose}) => {
+  const [msg,setMsg]=useState("");
+  const [sending,setSending]=useState(false);
+  const enviarPlataforma = async () => {
+    if(!msg.trim()){ onToast("Escribe tu duda primero"); return; }
+    setSending(true);
+    try { await api.enviarDuda({mensaje:msg.trim(), remitente:student.name, num_control:student.user}); onToast("Duda enviada ✓"); onClose(); }
+    catch(e){ onToast("No se pudo enviar. Intenta por WhatsApp."); }
+    finally { setSending(false); }
+  };
+  const enviarWhatsApp = () => {
+    if(!msg.trim()){ onToast("Escribe tu duda primero"); return; }
+    const texto = `Hola, soy ${student.name} (ID ${student.user}). Tengo una duda sobre la plataforma:\n\n${msg.trim()}`;
+    window.open(`https://wa.me/${WHATSAPP_ADMIN}?text=${encodeURIComponent(texto)}`, "_blank");
+    onClose();
+  };
+  return (
+    <Modal title="¿TIENES UNA DUDA?" onClose={onClose}>
+      <div style={{color:"#9090b0",fontSize:13,marginBottom:14,lineHeight:1.5}}>
+        Escribe tu duda lo más <strong style={{color:"#dde0ee"}}>clara y completa</strong> posible. Mientras más contexto des (qué estabas haciendo, qué esperabas y qué pasó), más rápido te podremos ayudar.
+      </div>
+      <textarea className="tk-input" rows={5} value={msg} onChange={e=>setMsg(e.target.value)} placeholder="Describe tu duda aquí..." style={{resize:"vertical",fontFamily:"inherit",width:"100%"}}/>
+      <div style={{display:"flex",gap:10,marginTop:16,flexWrap:"wrap"}}>
+        <button className="tk-btn btn-red" disabled={sending} onClick={enviarPlataforma} style={{flex:1,minWidth:150}}>{sending?"Enviando...":"Enviar por la plataforma"}</button>
+        <button className="tk-btn btn-blue" onClick={enviarWhatsApp} style={{flex:1,minWidth:150}}>Enviar por WhatsApp</button>
+      </div>
+    </Modal>
+  );
+};
+
+const AdminBuzon = ({api}) => {
+  const [dudas,setDudas]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [toast,setToast]=useState(null);
+  const cargar = async () => {
+    setLoading(true);
+    try { const d = await api.getDudas(); setDudas(d); } catch(e){ setDudas([]); }
+    finally { setLoading(false); }
+  };
+  useEffect(()=>{ cargar(); }, []);
+  const marcar = async (id) => { try { await api.markDudaLeida(id); setDudas(ds=>ds.map(d=>d.id_duda===id?{...d,leido:true}:d)); }catch(e){ setToast("No se pudo actualizar"); } };
+  const borrar = async (id) => { try { await api.deleteDuda(id); setDudas(ds=>ds.filter(d=>d.id_duda!==id)); }catch(e){ setToast("No se pudo eliminar"); } };
+  const noLeidas = dudas.filter(d=>!d.leido).length;
+  return (
+    <div>
+      <div className="section-title" style={{marginBottom:6}}>BUZÓN DE DUDAS</div>
+      <div style={{color:"#7070a0",fontSize:13,marginBottom:20}}>{noLeidas>0?`${noLeidas} sin leer`:"Todo al día"}</div>
+      {loading?(
+        <div className="card" style={{padding:40,textAlign:"center",color:"#666688"}}>Cargando...</div>
+      ):dudas.length===0?(
+        <div className="card empty-state" style={{padding:48}}><div className="empty-icon">📭</div><div>No hay dudas todavía</div></div>
+      ):(
+        <div style={{display:"grid",gap:12}}>
+          {dudas.map(d=>(
+            <div key={d.id_duda} className="card" style={{padding:18,borderLeft:`3px solid ${d.leido?"#2a2a3e":"#c01212"}`}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12,marginBottom:8}}>
+                <div>
+                  <div style={{color:"#f0f0fa",fontWeight:600,fontSize:14}}>{d.remitente||"Usuario"}{d.num_control&&<span style={{color:"#555577",fontWeight:400}}> · {d.num_control}</span>}</div>
+                  <div style={{color:"#555577",fontSize:11,marginTop:2}}>{fmtDate((d.fecha||"").split("T")[0])} {((d.fecha||"").split("T")[1]||"").slice(0,5)}</div>
+                </div>
+                <div style={{display:"flex",gap:6}}>
+                  {!d.leido&&<button className="tk-btn btn-ghost btn-sm" onClick={()=>marcar(d.id_duda)}>Marcar leída</button>}
+                  <button className="tk-btn btn-danger btn-sm" onClick={()=>borrar(d.id_duda)}><Icon name="trash" size={12}/></button>
+                </div>
+              </div>
+              <div style={{color:"#c8c8e0",fontSize:13,lineHeight:1.5,whiteSpace:"pre-wrap"}}>{d.mensaje}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {toast&&<Toast msg={toast} onDone={()=>setToast(null)}/>}
+    </div>
+  );
+};
+
 const StudentPortal = ({session,api,onLogout}) => {
   const [tab,setTab]=useState("profile");
   const [toast,setToast]=useState(null);
   const [editPersonal,setEditPersonal]=useState(false);
+  const [showDuda,setShowDuda]=useState(false);
   const showToast=(msg)=>setToast(msg);
   const student=api.getStudent(session.id);
   const payments=api.getStudentPayments(session.id);
@@ -2497,6 +2580,7 @@ const StudentPortal = ({session,api,onLogout}) => {
         </div>
         <div style={{display:"flex",alignItems:"center",gap:16}}>
           <div style={{textAlign:"right"}}><div style={{color:"#dde0ee",fontSize:13,fontWeight:500}}>{student.name}</div><BeltBadge belt={student.belt}/></div>
+          <button className="tk-btn btn-blue btn-sm" onClick={()=>setShowDuda(true)}><Icon name="bell" size={13}/>¿Dudas?</button>
           <button className="tk-btn btn-ghost btn-sm" onClick={onLogout}><Icon name="logout" size={13}/>Salir</button>
         </div>
       </div>
@@ -2704,6 +2788,7 @@ const StudentPortal = ({session,api,onLogout}) => {
           <StudentPersonalEdit student={student} api={api} onToast={showToast} onClose={()=>setEditPersonal(false)}/>
         </Modal>
       )}
+      {showDuda&&<DudaModal student={student} api={api} onToast={showToast} onClose={()=>setShowDuda(false)}/>}
       {toast&&<Toast msg={toast} onDone={()=>setToast(null)}/>}
     </div>
   );
