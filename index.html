@@ -526,11 +526,11 @@ function createApi(db, setDb) {
       } catch(e){ console.error(e); }
     },
     updateInstructor: async (id,d) => {
-      try { await apiFetch(`/api/instructores/${id}`, {method:"PUT", body: JSON.stringify(d)}); } catch(e){ console.error(e); }
+      await apiFetch(`/api/instructores/${id}`, {method:"PUT", body: JSON.stringify(d)});
       mutate(db=>({instructores:db.instructores.map(i=>i.id===id?{...i,...d}:i)}));
     },
     deleteInstructor: async (id) => {
-      try { await apiFetch(`/api/instructores/${id}`, {method:"DELETE"}); } catch(e){ console.error(e); }
+      await apiFetch(`/api/instructores/${id}`, {method:"DELETE"});
       mutate(db=>({instructores:db.instructores.filter(i=>i.id!==id), clases:db.clases.map(c=>c.instructorId===id?{...c,instructorId:"1",instructorNombre:""}:c)}));
     },
     updateMiPerfil: async (d) => {
@@ -971,8 +971,9 @@ const StudentExamsModal = ({student,api,onClose}) => {
 
 // ─── PERFIL ADMIN ─────────────────────────────────────────────────────────────
 // ─── INSTRUCTOR FORM ─────────────────────────────────────────────────────────
-const InstructorForm = ({onSave,onClose}) => {
-  const [f,setF]=useState({nombre:"",cargo:"",grado_cinta:"Blanco",email:"",telefono:"",username:"",password:""});
+const InstructorForm = ({onSave,onClose,initial}) => {
+  const isEdit = !!initial;
+  const [f,setF]=useState({nombre:initial?.nombre||"",cargo:initial?.cargo||"",grado_cinta:initial?.grado_cinta||"Blanco",email:initial?.email||"",telefono:initial?.telefono||"",username:initial?.username||"",password:""});
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
   const submit=(e)=>{e.preventDefault();onSave(f);onClose();};
   return(
@@ -986,16 +987,16 @@ const InstructorForm = ({onSave,onClose}) => {
         <div><label className="tk-label">Teléfono</label><input className="tk-input" value={f.telefono} onChange={e=>set("telefono",e.target.value)}/></div>
       </div>
       <div className="form-row"><div><label className="tk-label">Correo electrónico</label><input className="tk-input" type="email" value={f.email} onChange={e=>set("email",e.target.value)}/></div></div>
-      <div style={{borderTop:"1px solid #1e1e2e",paddingTop:14,marginTop:8}}>
+      {!isEdit && <div style={{borderTop:"1px solid #1e1e2e",paddingTop:14,marginTop:8}}>
         <div style={{fontSize:11,color:"#555577",letterSpacing:.8,textTransform:"uppercase",marginBottom:10}}>Acceso al sistema</div>
         <div className="form-row form-row-2">
           <div><label className="tk-label">Usuario</label><input className="tk-input" required value={f.username} onChange={e=>set("username",e.target.value)}/></div>
           <div><label className="tk-label">Contraseña</label><input className="tk-input" type="password" required value={f.password} onChange={e=>set("password",e.target.value)}/></div>
         </div>
-      </div>
+      </div>}
       <div className="form-actions">
         <button type="button" className="tk-btn btn-ghost" onClick={onClose}>Cancelar</button>
-        <button type="submit" className="tk-btn btn-red">Registrar maestro</button>
+        <button type="submit" className="tk-btn btn-red">{isEdit?"Guardar cambios":"Registrar maestro"}</button>
       </div>
     </form>
   );
@@ -1069,13 +1070,15 @@ const AdminProfile = ({api,onToast,session}) => {
               {i.email&&<div style={{color:"#666688",fontSize:11}}>{i.email}</div>}
             </div>
             <div style={{display:"flex",gap:6}}>
-              <button className="tk-btn btn-danger btn-sm" onClick={()=>setModal({del:i.id})} disabled={i.username===f.user}><Icon name="trash" size={12}/></button>
+              <button className="tk-btn btn-ghost btn-sm" title="Editar" onClick={()=>setModal({edit:i})}><Icon name="edit" size={12}/></button>
+              <button className="tk-btn btn-danger btn-sm" title="Eliminar" onClick={()=>setModal({del:i.id})} disabled={i.username===f.user}><Icon name="trash" size={12}/></button>
             </div>
           </div>
         ))}
       </div>
-      {modal==="add"&&<Modal title="NUEVO MAESTRO" onClose={()=>setModal(null)} lg><InstructorForm onSave={d=>api.addInstructor(d)} onClose={()=>setModal(null)}/></Modal>}
-      {modal?.del&&<ConfirmModal message="¿Eliminar este maestro? Las clases asignadas pasarán al maestro principal." onConfirm={()=>api.deleteInstructor(modal.del)} onClose={()=>setModal(null)}/>}
+      {modal==="add"&&<Modal title="NUEVO MAESTRO" onClose={()=>setModal(null)} lg><InstructorForm onSave={async d=>{try{await api.addInstructor(d);onToast("Maestro registrado");}catch(e){onToast("No se pudo registrar el maestro");}}} onClose={()=>setModal(null)}/></Modal>}
+      {modal?.edit&&<Modal title="EDITAR MAESTRO" onClose={()=>setModal(null)} lg><InstructorForm initial={modal.edit} onSave={async d=>{try{await api.updateInstructor(modal.edit.id,d);onToast("Maestro actualizado");}catch(e){onToast("No se pudo actualizar el maestro");}}} onClose={()=>setModal(null)}/></Modal>}
+      {modal?.del&&<ConfirmModal message="¿Eliminar este maestro? Las clases asignadas pasarán al maestro principal." onConfirm={async ()=>{try{await api.deleteInstructor(modal.del);onToast("Maestro eliminado");}catch(e){onToast("No se pudo eliminar el maestro");}}} onClose={()=>setModal(null)}/>}
     </div>
   );
 };
