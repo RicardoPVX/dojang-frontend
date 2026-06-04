@@ -1133,7 +1133,7 @@ const AdminInventory = ({api,onToast}) => {
       {equipo.length===0
         ?<div className="card empty-state" style={{padding:48}}><div className="empty-icon">📦</div><div>Sin artículos en inventario</div><div style={{fontSize:12,marginTop:8,color:"#333355"}}>Agrega artículos con "+ Nuevo artículo"</div></div>
         :<div className="card"><table>
-          <thead><tr><th>Descripción</th><th>Talla/Modelo</th><th>Precio</th><th>Stock</th><th>Estado</th><th>Préstamo</th><th></th></tr></thead>
+          <thead><tr><th>Descripción</th><th>Talla/Modelo</th><th>Precio</th><th>Stock</th><th>Estado</th><th></th></tr></thead>
           <tbody>
             {equipo.map(item=>{
               const sc=item.stock===0?"stock-out":item.stock<=item.stock_minimo?"stock-low":"stock-ok";
@@ -1149,21 +1149,6 @@ const AdminInventory = ({api,onToast}) => {
                     <button className="qty-btn" onClick={()=>api.adjustStock(item.id,1)}>+</button>
                   </div></td>
                   <td><span className={`stock-badge ${sc}`}>{sl}</span></td>
-                  <td style={{minWidth:160}}>
-                    {(item.prestamos||[]).length>0&&<div style={{marginBottom:6}}>
-                      {(item.prestamos||[]).map(p=>(
-                        <div key={p.id} style={{display:"flex",alignItems:"center",gap:6,marginBottom:4,background:"rgba(239,68,68,.08)",padding:"4px 8px",borderRadius:6}}>
-                          <div style={{flex:1}}>
-                            <div style={{color:"#f87171",fontSize:11,fontWeight:500}}>{p.alumnoNombre}</div>
-                            <div style={{color:"#555577",fontSize:10}}>{fmtDate(p.fecha)}</div>
-                          </div>
-                          <button className="tk-btn btn-ghost btn-sm" style={{fontSize:10,padding:"2px 6px"}} onClick={()=>api.liberarEquipo(item.id,p.id)}>✕</button>
-                        </div>
-                      ))}
-                    </div>}
-                    {item.stock>0&&<button className="tk-btn btn-blue btn-sm" style={{fontSize:11}} onClick={()=>setModal({prestar:item})}>+ Prestar</button>}
-                    {item.stock<=0&&(item.prestamos||[]).length===0&&<span style={{color:"#555577",fontSize:11}}>Sin stock</span>}
-                  </td>
                   <td><div style={{display:"flex",gap:5}}>
                     <button className="tk-btn btn-ghost btn-sm" onClick={()=>setModal({edit:item})}><Icon name="edit" size={13}/></button>
                     <button className="tk-btn btn-danger btn-sm" onClick={()=>setModal({del:item.id})}><Icon name="trash" size={13}/></button>
@@ -1177,24 +1162,6 @@ const AdminInventory = ({api,onToast}) => {
       {modal==="add"&&<Modal title="NUEVO ARTÍCULO" onClose={()=>setModal(null)}><EquipoForm onSave={d=>api.addEquipoItem(d)} onClose={()=>setModal(null)}/></Modal>}
       {modal?.edit&&<Modal title="EDITAR ARTÍCULO" onClose={()=>setModal(null)}><EquipoForm initial={modal.edit} onSave={d=>api.updateEquipoItem(modal.edit.id,d)} onClose={()=>setModal(null)}/></Modal>}
       {modal?.del&&<ConfirmModal message="¿Eliminar este artículo del inventario?" onConfirm={()=>api.deleteEquipoItem(modal.del)} onClose={()=>setModal(null)}/>}
-      {modal?.prestar&&<Modal title="PRESTAR EQUIPO" onClose={()=>setModal(null)}>
-        <div style={{marginBottom:14,color:"#9090b0",fontSize:13}}>
-          Artículo: <strong style={{color:"#f0f0fa"}}>{modal.prestar.descripcion} {modal.prestar.talla_modelo||""}</strong>
-        </div>
-        <div className="form-row"><div><label className="tk-label">Alumno</label>
-          <select className="tk-input" id="prestar-alumno-select">
-            <option value="">— Seleccionar alumno —</option>
-            {api.getStudents().map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-        </div></div>
-        <div className="form-actions">
-          <button className="tk-btn btn-ghost" onClick={()=>setModal(null)}>Cancelar</button>
-          <button className="tk-btn btn-red" onClick={()=>{
-            const sel=document.getElementById("prestar-alumno-select")?.value;
-            if(sel){api.prestarEquipo(modal.prestar.id,sel);setModal(null);}
-          }}>Confirmar préstamo</button>
-        </div>
-      </Modal>}
     </div>
   );
 };
@@ -2183,7 +2150,6 @@ const AdminLayout = ({session,api,onLogout,isMaestro}) => {
     {id:"events",label:"Agenda",icon:"calendar"},
     {id:"clases",label:"Clases",icon:"clock"},
     {id:"inventory",label:"Inventario",icon:"box"},
-    {id:"lockers",label:"Lockers",icon:"settings"},
     {id:"profile",label:"Mi Perfil",icon:"settings"},
   ];
   // El maestro solo ve: Dashboard, Alumnos y Clases
@@ -2235,7 +2201,6 @@ const AdminLayout = ({session,api,onLogout,isMaestro}) => {
           {!isMaestro&&tab==="events"&&<AdminEvents api={api}/>}
           {tab==="clases"&&<AdminClases api={api}/>}
           {!isMaestro&&tab==="inventory"&&<AdminInventory api={api} onToast={showToast}/>}
-          {!isMaestro&&tab==="lockers"&&<AdminLockers api={api} onToast={showToast}/>}
           {!isMaestro&&tab==="profile"&&<AdminProfile api={api} onToast={showToast} session={session}/>}
         </div>
       </div>
@@ -2522,8 +2487,6 @@ const StudentPortal = ({session,api,onLogout}) => {
     {id:"exams",label:"Mis exámenes",icon:"diploma"},
     {id:"payments",label:"Mis pagos",icon:"payment"},
     {id:"events",label:"Próximos eventos",icon:"calendar"},
-    {id:"lockers",label:"Lockers",icon:"box"},
-    {id:"equipo",label:"Mi equipo",icon:"box"},
   ];
   return(
     <div style={{minHeight:"100vh"}}>
@@ -2732,47 +2695,6 @@ const StudentPortal = ({session,api,onLogout}) => {
                 );
               })
             }
-          </div>
-        )}
-
-        {/* LOCKERS */}
-        {tab==="lockers"&&(
-          <StudentLockers api={api} student={student} onToast={showToast}/>
-        )}
-        {/* EQUIPO PRESTADO */}
-        {tab==="equipo"&&(
-          <div>
-            <div className="section-title" style={{marginBottom:20}}>MI EQUIPO PRESTADO</div>
-            {(()=>{
-              const miEquipo = api.getEquipo().flatMap(e=>(e.prestamos||[]).filter(p=>p.alumnoId===student.id).map(p=>({...e,prestamo:p})));
-              if(miEquipo.length===0) return(
-                <div className="card empty-state" style={{padding:48}}>
-                  <div className="empty-icon">🥋</div>
-                  <div>No tienes equipo prestado actualmente</div>
-                  <div style={{fontSize:12,marginTop:8,color:"#333355"}}>El maestro puede asignarte equipo desde el inventario</div>
-                </div>
-              );
-              return(
-                <div style={{display:"grid",gap:12}}>
-                  {miEquipo.map(e=>(
-                    <div key={e.prestamo.id} className="card" style={{padding:18,borderLeft:"3px solid #c01212",display:"flex",alignItems:"center",gap:16}}>
-                      <div style={{fontSize:28}}>🥋</div>
-                      <div style={{flex:1}}>
-                        <div style={{color:"#f0f0fa",fontWeight:600,fontSize:15}}>{e.descripcion}</div>
-                        <div style={{color:"#9090b0",fontSize:12,marginTop:4}}>
-                          {e.talla_modelo&&<span>Talla: {e.talla_modelo} · </span>}
-                          Prestado el <span style={{color:"#dde0ee"}}>{fmtDate(e.prestamo.fecha)}</span>
-                        </div>
-                      </div>
-                      <span style={{background:"rgba(239,68,68,.15)",color:"#f87171",padding:"4px 12px",borderRadius:20,fontSize:12,fontWeight:600,border:"1px solid rgba(239,68,68,.3)"}}>En préstamo</span>
-                    </div>
-                  ))}
-                  <div style={{padding:"12px 16px",background:"rgba(255,255,255,.03)",borderRadius:8,border:"1px solid #1e1e2e",fontSize:12,color:"#7070a0"}}>
-                    ℹ️ Para devolver equipo, habla directamente con el maestro.
-                  </div>
-                </div>
-              );
-            })()}
           </div>
         )}
       </div>
