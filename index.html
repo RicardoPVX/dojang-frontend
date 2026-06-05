@@ -1591,6 +1591,14 @@ const MensualidadesPanel = ({api}) => {
     return d.getMonth()===mes && d.getFullYear()===anio;
   });
   const totalPagados = students.filter(s=>!!pagoDeAlumno(s)).length;
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const inicioMensualidades = new Date(2026,5,1); // junio 2026
+  const esVencido = (s) => {
+    if(pagoDeAlumno(s)) return false;
+    if(new Date(anio,mes,1) < inicioMensualidades) return false;
+    return hoy > new Date(anio, mes, s.diaPago||1);
+  };
+  const vencidos = students.filter(s=>esVencido(s)).length;
   return(
     <div>
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20,flexWrap:"wrap"}}>
@@ -1599,30 +1607,34 @@ const MensualidadesPanel = ({api}) => {
         <button className="tk-btn btn-ghost btn-sm" onClick={nextMes}>›</button>
         <span style={{marginLeft:"auto",color:"#9090b0",fontSize:13}}>
           <span style={{color:"#4ade80",fontWeight:600}}>{totalPagados}</span>/{students.length} pagados
+          {vencidos>0&&<>&nbsp;·&nbsp;<span style={{color:"#f87171",fontWeight:600}}>{vencidos} vencidos</span></>}
           &nbsp;·&nbsp;
           <span style={{color:"#4ade80",fontWeight:600}}>${totalPagados*500}</span> recaudado
         </span>
       </div>
+      {vencidos>0&&<div style={{background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.3)",borderRadius:8,padding:"10px 14px",marginBottom:16,color:"#f87171",fontSize:13,fontWeight:500}}>⚠ {vencidos} alumno{vencidos>1?"s":""} con la mensualidad de {MESES[mes]} vencida (ya pasó su día de pago).</div>}
       <div className="card" style={{padding:0,overflow:"hidden"}}>
         <table>
-          <thead><tr><th>Alumno</th><th>Cinturón</th><th>Monto</th><th style={{textAlign:"center"}}>Estado</th></tr></thead>
+          <thead><tr><th>Alumno</th><th>Cinturón</th><th>Día pago</th><th>Monto</th><th style={{textAlign:"center"}}>Estado</th></tr></thead>
           <tbody>
-            {students.length===0&&<tr><td colSpan={4}><div className="empty-state"><div className="empty-icon">👥</div><div>Sin alumnos registrados</div></div></td></tr>}
+            {students.length===0&&<tr><td colSpan={5}><div className="empty-state"><div className="empty-icon">👥</div><div>Sin alumnos registrados</div></div></td></tr>}
             {students.map(s=>{
               const pago=pagoDeAlumno(s);
               const pagado=!!pago;
+              const vencido=!pagado&&esVencido(s);
               return(
                 <tr key={s.id}>
                   <td style={{color:"#dde0ee",fontWeight:500}}>{s.name}</td>
                   <td><BeltBadge belt={s.belt}/></td>
+                  <td style={{color:"#9090b0"}}>Día {s.diaPago||1}</td>
                   <td style={{color:"#9090b0",fontWeight:600}}>$500</td>
                   <td style={{textAlign:"center"}}>
                     <label style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer"}}>
                       <input type="checkbox" checked={pagado}
                         onChange={e=>api.pagarMensualidad(s,e.target.checked,mes,anio,todayStr())}
                         style={{width:18,height:18,cursor:"pointer",accentColor:"#c01212"}}/>
-                      <span style={{color:pagado?"#4ade80":"#f87171",fontSize:13,fontWeight:600,minWidth:70}}>
-                        {pagado?"✓ Pagado":"Pendiente"}
+                      <span style={{color:pagado?"#4ade80":vencido?"#f87171":"#d4960f",fontSize:13,fontWeight:600,minWidth:80}}>
+                        {pagado?"✓ Pagado":vencido?"⚠ Vencido":"Pendiente"}
                       </span>
                     </label>
                   </td>
