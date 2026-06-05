@@ -309,7 +309,8 @@ function createApi(db, setDb) {
           tipo_sangre: d.personal?.blood || "",
           contacto_emergencia: d.personal?.emergency || "",
           tel_emergencia: d.personal?.emergencyPhone || "",
-          notas_medicas: d.personal?.medNotes || ""
+          notas_medicas: d.personal?.medNotes || "",
+          dia_pago: d.diaPago || 1
         })});
         // Assign class if provided
         if(d.claseId){
@@ -335,7 +336,8 @@ function createApi(db, setDb) {
           tipo_sangre: d.personal?.blood || "",
           contacto_emergencia: d.personal?.emergency || "",
           tel_emergencia: d.personal?.emergencyPhone || "",
-          notas_medicas: d.personal?.medNotes || ""
+          notas_medicas: d.personal?.medNotes || "",
+          dia_pago: d.diaPago || 1
         })});
       } catch(e) { console.error("Error actualizando alumno:", e); }
       // Update class assignment if changed
@@ -1462,7 +1464,7 @@ const LoginPage = ({onLogin, db}) => {
 
 // ─── STUDENT FORM ─────────────────────────────────────────────────────────────
 const StudentForm = ({initial,onSave,onClose,api}) => {
-  const empty={name:"",dob:"",belt:"Blanco",parent:"",phone:"",email:"",joined:todayStr(),active:true,user:"",pass:"CAMBIAR",claseId:"",personal:{address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}};
+  const empty={name:"",dob:"",belt:"Blanco",parent:"",phone:"",email:"",joined:todayStr(),active:true,user:"",pass:"CAMBIAR",claseId:"",diaPago:1,personal:{address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}};
   const [f,setF] = useState(initial||empty);
   const set = (k,v)=>setF(p=>({...p,[k]:v}));
   const setP = (k,v)=>setF(p=>({...p,personal:{...p.personal,[k]:v}}));
@@ -1486,6 +1488,9 @@ const StudentForm = ({initial,onSave,onClose,api}) => {
           <option value="">— Sin clase —</option>
           {api&&api.getClases().map(cl=><option key={cl.id} value={cl.id}>{cl.nombre} · {cl.dias} · {cl.horaInicio}-{cl.horaFin}</option>)}
         </select></div>
+      </div>
+      <div className="form-row form-row-2">
+        <div><label className="tk-label">Día de pago (mensualidad)</label><select className="tk-input" value={f.diaPago||1} onChange={e=>set("diaPago",parseInt(e.target.value))}><option value={1}>Día 1 de cada mes</option><option value={15}>Día 15 de cada mes</option></select></div>
       </div>
       <div className="form-row form-row-2">
         <div><label className="tk-label">Padre / Tutor</label><input className="tk-input" value={f.parent} onChange={e=>set("parent",e.target.value)}/></div>
@@ -2604,7 +2609,7 @@ const StudentPortal = ({session,api,onLogout}) => {
                   <div><div style={{color:"#f0f0fa",fontWeight:600,fontSize:16}}>{student.name}</div><BeltBadge belt={student.belt}/></div>
                 </div>
                 <div style={{display:"grid",gap:10}}>
-                  {[{label:"Edad",value:`${student.age} años`},{label:"Fecha de ingreso",value:fmtDate(student.joined)},...(student.claseNombre?[{label:"Clase",value:student.claseNombre}]:[]),...(student.claseDias?[{label:"Días",value:student.claseDias}]:[]),...(student.claseHora?[{label:"Horario",value:student.claseHora}]:[]),{label:"Exámenes aprobados",value:`${approvedExams}`},{label:"Estatus",value:student.active?"Activo ✓":"Inactivo"}].map(row=>(
+                  {[{label:"Edad",value:`${student.age} años`},{label:"Fecha de ingreso",value:fmtDate(student.joined)},...(student.claseNombre?[{label:"Clase",value:student.claseNombre}]:[]),...(student.claseDias?[{label:"Días",value:student.claseDias}]:[]),...(student.claseHora?[{label:"Horario",value:student.claseHora}]:[]),{label:"Día de pago",value:`Día ${student.diaPago||1} de cada mes`},{label:"Exámenes aprobados",value:`${approvedExams}`},{label:"Estatus",value:student.active?"Activo ✓":"Inactivo"}].map(row=>(
                     <div key={row.label} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid #151520"}}>
                       <span style={{color:"#555577",fontSize:12}}>{row.label}</span><span style={{color:"#dde0ee",fontSize:13}}>{row.value}</span>
                     </div>
@@ -2846,6 +2851,7 @@ function App() {
         claseDias: a.clase_dias || null,
         claseHora: a.clase_hora_inicio && a.clase_hora_fin
           ? `${a.clase_hora_inicio.slice(0,5)} - ${a.clase_hora_fin.slice(0,5)}` : null,
+        diaPago: a.dia_pago === 15 ? 15 : 1,
         personal:{
           address: a.direccion || "",
           blood: a.tipo_sangre || "",
