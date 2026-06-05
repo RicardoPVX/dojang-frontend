@@ -364,6 +364,7 @@ function createApi(db, setDb) {
     getPayments: () => db.payments,
     getStudentPayments:(sid)=>db.payments.filter(p=>p.sid===sid),
     addPayment: async (d) => {
+      const respId = db.students.find(s=>s.id===d.sid)?.respId || `RESP-${d.sid}`;
       try {
         await apiFetch("/api/pagos", {method:"POST", body: JSON.stringify({
           monto_total: d.total,
@@ -371,10 +372,10 @@ function createApi(db, setDb) {
           tipo_pago: d.concept,
           metodo_pago: d.installments > 1 ? "A plazos" : "Contado",
           estado_pago: "Pendiente",
-          num_control_responsable: d.sid
+          num_control_responsable: respId
         })});
       } catch(e) {}
-      mutate(db=>({payments:[...db.payments,{...d,id:uid("p")}]}));
+      mutate(db=>({payments:[...db.payments,{...d,id:uid("p"),sid:respId}]}));
     },
     updatePayment:(id,d)=>mutate(db=>({payments:db.payments.map(p=>p.id===id?{...p,...d}:p)})),
     deletePayment:(id)=>mutate(db=>({payments:db.payments.filter(p=>p.id!==id)})),
@@ -2572,7 +2573,7 @@ const StudentPortal = ({session,api,onLogout}) => {
   const [showDuda,setShowDuda]=useState(false);
   const showToast=(msg)=>setToast(msg);
   const student=api.getStudent(session.id);
-  const payments=api.getStudentPayments(session.id);
+  const payments=api.getPayments().filter(p=>p.sid===(student?.respId||`RESP-${session.id}`));
   const events=api.getEvents().filter(e=>e.date>=todayStr());
   const [inscritoEnSedes, setInscritoEnSedes] = useState(new Set());
   const exams=api.getStudentExams(session.id);
@@ -2719,9 +2720,35 @@ const StudentPortal = ({session,api,onLogout}) => {
         {tab==="payments"&&(
           <div>
             <div className="section-title" style={{marginBottom:20}}>MIS PAGOS Y LIQUIDACIONES</div>
-            {payments.length===0?<div className="card empty-state" style={{padding:48}}><div className="empty-icon">✅</div><div>Sin planes de pago activos</div></div>:(
+            {(()=>{
+              const hoy=new Date(); hoy.setHours(0,0,0,0);
+              const mes=hoy.getMonth(), anio=hoy.getFullYear();
+              const dia=student.diaPago||1;
+              const pagada=payments.some(p=>{ if(p.concept!=="Mensualidad")return false; const d=new Date(p.start); return d.getMonth()===mes&&d.getFullYear()===anio; });
+              const due=new Date(anio,mes,dia);
+              const vencida=!pagada&&hoy>due;
+              const color=pagada?"#4ade80":vencida?"#f87171":"#d4960f";
+              const bg=pagada?"rgba(74,222,128,.08)":vencida?"rgba(239,68,68,.1)":"rgba(212,150,15,.08)";
+              const estado=pagada?"✓ Pagada":vencida?"⚠ Vencida":"Pendiente";
+              const msg=pagada?`Tu mensualidad de ${MESES[mes]} está al corriente. ¡Gracias!`:vencida?`Tu pago ya se pasó de su fecha (vencía el día ${dia}). Ponte al corriente lo antes posible.`:`Tu mensualidad de ${MESES[mes]} vence el día ${dia} de este mes.`;
+              return(
+                <div className="card" style={{padding:22,marginBottom:16,borderLeft:`3px solid ${color}`,background:bg}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+                    <div>
+                      <div style={{color:"#f0f0fa",fontWeight:600,fontSize:15}}>Mensualidad · {MESES[mes]} {anio}</div>
+                      <div style={{color,fontSize:14,fontWeight:700,marginTop:4}}>{estado}</div>
+                      <div style={{color:"#9090b0",fontSize:12,marginTop:6,maxWidth:380}}>{msg}</div>
+                    </div>
+                    <div style={{textAlign:"right"}}><div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:28,color:"#f0f0fa",lineHeight:1}}>$500</div><div style={{fontSize:11,color:"#555577",marginTop:2}}>al mes · día {dia}</div></div>
+                  </div>
+                </div>
+              );
+            })()}
+            {(()=>{
+              const planes=payments.filter(p=>p.concept!=="Mensualidad");
+              return planes.length===0?<div className="card empty-state" style={{padding:40}}><div className="empty-icon">✅</div><div>Sin planes de pago activos</div></div>:(
               <div style={{display:"grid",gap:14}}>
-                {payments.map(p=>(
+                {planes.map(p=>(
                   <div key={p.id} className="card" style={{padding:22}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
                       <div><div style={{color:"#f0f0fa",fontWeight:600,fontSize:15,marginBottom:4}}>{p.concept}</div><StatusTag status={p.status}/></div>
@@ -2737,7 +2764,8 @@ const StudentPortal = ({session,api,onLogout}) => {
                   </div>
                 ))}
               </div>
-            )}
+              );
+            })()}
           </div>
         )}
 
