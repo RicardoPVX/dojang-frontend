@@ -2874,7 +2874,7 @@ function App() {
         safeGet("/api/clases"),
         safeGet("/api/equipo"),
         safeGet("/api/instructores"),
-        safeGet("/api/lockers"),
+        Promise.resolve([]),
         safeGet("/api/sedes"),
       ]);
       const mappedStudents = Array.isArray(students) ? students.map(a => ({
