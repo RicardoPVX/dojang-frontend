@@ -378,7 +378,10 @@ function createApi(db, setDb) {
       mutate(db=>({payments:[...db.payments,{...d,id:uid("p"),sid:respId}]}));
     },
     updatePayment:(id,d)=>mutate(db=>({payments:db.payments.map(p=>p.id===id?{...p,...d}:p)})),
-    deletePayment:(id)=>mutate(db=>({payments:db.payments.filter(p=>p.id!==id)})),
+    deletePayment: async (id) => {
+      try { await apiFetch(`/api/pagos/${id}`, {method:"DELETE"}); } catch(e) { console.error(e); }
+      mutate(db=>({payments:db.payments.filter(p=>p.id!==id)}));
+    },
     pagarMensualidad: async (student, checked, mes, anio, fecha) => {
       const respId = student.respId || `RESP-${student.id}`;
       const existing = db.payments.find(p => {
