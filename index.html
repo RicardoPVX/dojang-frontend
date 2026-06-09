@@ -377,7 +377,22 @@ function createApi(db, setDb) {
       } catch(e) {}
       mutate(db=>({payments:[...db.payments,{...d,id:uid("p"),sid:respId}]}));
     },
-    updatePayment:(id,d)=>mutate(db=>({payments:db.payments.map(p=>p.id===id?{...p,...d}:p)})),
+    updatePayment: async (id, d) => {
+      const respId = db.students.find(s=>s.id===d.sid)?.respId || `RESP-${d.sid}`;
+      const estado = d.status==="liquidado"?"Liquidado":d.status==="vencido"?"Vencido":"Pendiente";
+      try {
+        await apiFetch(`/api/pagos/${id}`, {method:"PUT", body: JSON.stringify({
+          monto_total: d.total,
+          monto_abonado: d.paid || 0,
+          fecha_pago: d.start,
+          metodo_pago: d.installments > 1 ? "A plazos" : "Contado",
+          tipo_pago: d.concept,
+          estado_pago: estado,
+          num_control_responsable: respId
+        })});
+      } catch(e) { console.error(e); }
+      mutate(db=>({payments:db.payments.map(p=>p.id===id?{...p,...d,sid:respId}:p)}));
+    },
     deletePayment: async (id) => {
       try { await apiFetch(`/api/pagos/${id}`, {method:"DELETE"}); } catch(e) { console.error(e); }
       mutate(db=>({payments:db.payments.filter(p=>p.id!==id)}));
