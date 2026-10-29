@@ -184,34 +184,13 @@ const buildInitInventory = () => {
   return inv;
 };
 
+// Arranca vacío: todo se carga del backend al iniciar sesión (nada de datos de ejemplo)
 const INIT_DB = {
-  students:[
-    {id:"s1",name:"Carlos Mendoza",age:14,belt:"Azul",parent:"Roberto Mendoza",phone:"961-234-5678",email:"roberto.m@email.com",joined:"2023-03-15",active:true,user:"carlos_m",pass:"1234",
-     personal:{address:"Calle Insurgentes 45, Tuxtla",blood:"O+",emergency:"Roberto Mendoza",emergencyPhone:"961-234-5678",medNotes:""}},
-    {id:"s2",name:"Sofía Ruiz",age:10,belt:"Amarillo",parent:"Ana Ruiz",phone:"961-876-5432",email:"ana.ruiz@email.com",joined:"2024-01-10",active:true,user:"sofia_r",pass:"1234",
-     personal:{address:"",blood:"A+",emergency:"Ana Ruiz",emergencyPhone:"961-876-5432",medNotes:""}},
-    {id:"s3",name:"Diego Torres",age:17,belt:"Rojo",parent:"Miguel Torres",phone:"961-555-0011",email:"miguel.torres@email.com",joined:"2022-08-20",active:true,user:"diego_t",pass:"1234",
-     personal:{address:"",blood:"B+",emergency:"Miguel Torres",emergencyPhone:"961-555-0011",medNotes:""}},
-    {id:"s4",name:"Valentina Cruz",age:8,belt:"Blanco",parent:"Lucía Cruz",phone:"961-111-2222",email:"lucia.cruz@email.com",joined:"2025-09-01",active:true,user:"valentina_c",pass:"1234",
-     personal:{address:"",blood:"",emergency:"Lucía Cruz",emergencyPhone:"961-111-2222",medNotes:""}},
-  ],
+  students:[],
   payments:[],
   events:[],
-  exams:[
-    {id:"x1",sid:"s1",date:"2023-05-20",fromBelt:"Blanco",toBelt:"Amarillo",passed:true,notes:"Excelente técnica en patadas."},
-    {id:"x2",sid:"s1",date:"2023-07-15",fromBelt:"Amarillo",toBelt:"Naranja",passed:true,notes:"Buen desempeño en sparring."},
-    {id:"x3",sid:"s1",date:"2023-09-10",fromBelt:"Naranja",toBelt:"Verde",passed:true,notes:""},
-    {id:"x4",sid:"s1",date:"2024-02-08",fromBelt:"Verde",toBelt:"Azul",passed:true,notes:"Demostró liderazgo en el examen grupal."},
-    {id:"x5",sid:"s2",date:"2024-03-14",fromBelt:"Blanco",toBelt:"Amarillo",passed:true,notes:"Primera evaluación. Muy aplicada."},
-    {id:"x6",sid:"s3",date:"2022-10-05",fromBelt:"Blanco",toBelt:"Amarillo",passed:true,notes:""},
-    {id:"x7",sid:"s3",date:"2022-12-03",fromBelt:"Amarillo",toBelt:"Naranja",passed:true,notes:""},
-    {id:"x8",sid:"s3",date:"2023-02-11",fromBelt:"Naranja",toBelt:"Verde",passed:true,notes:""},
-    {id:"x9",sid:"s3",date:"2023-04-22",fromBelt:"Verde",toBelt:"Azul",passed:true,notes:""},
-    {id:"x10",sid:"s3",date:"2023-07-01",fromBelt:"Azul",toBelt:"Morado",passed:true,notes:""},
-    {id:"x11",sid:"s3",date:"2023-09-16",fromBelt:"Morado",toBelt:"Rojo",passed:true,notes:"Mejor alumno del ciclo."},
-    {id:"x12",sid:"s2",date:"2026-02-08",fromBelt:"Amarillo",toBelt:"Naranja",passed:false,notes:"Necesita reforzar el poomsae Taegeuk 2."},
-  ],
-  admin:{user:"maestro",pass:"admin123",name:"Maestro Ramírez",email:"maestro@dojang.mx",phone:"961-000-0000",dojangName:"Dojang Taekwondo Tuxtla",address:"Av. Principal 123, Tuxtla Gutiérrez"},
+  exams:[],
+  admin:{user:"admin",pass:"",name:"Administrador",email:"",phone:"",dojangName:"Dojang Taekwondo",address:""},
   torneos:[],
   sedes:[],
   clases:[],
@@ -259,18 +238,29 @@ const Toast = ({msg,onDone}) => {
 };
 
 // ─── API REAL (conectada a backend) ───────────────────────────────────────────
-const API_URL = "https://dojang-backend-niwf.onrender.com";
+// Abierto en tu PC (localhost) usa el backend local; en Vercel usa Render
+const API_URL = ["localhost","127.0.0.1"].includes(location.hostname)
+  ? "http://localhost:3001"
+  : "https://dojang-backend-niwf.onrender.com";
 let _token = null;
 
 async function apiFetch(path, options={}) {
   const headers = {"Content-Type":"application/json"};
   if(_token) headers["Authorization"] = `Bearer ${_token}`;
   const res = await fetch(API_URL + path, {...options, headers});
-  const data = await res.json();
-  console.log("apiFetch", path, res.status, data);
-  if(!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok) {
+    const err = new Error(data.error || `HTTP ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
   return data;
 }
+
+const mapEvento = (e) => ({
+  id: String(e.id_evento), title: e.titulo||"", type: e.tipo||"especial",
+  date: e.fecha ? String(e.fecha).split("T")[0] : "", desc: e.descripcion||"", place: e.lugar||""
+});
 
 function createApi(db, setDb) {
   const mutate = (fn) => setDb(prev => ({...prev,...fn(prev)}));
@@ -287,7 +277,10 @@ function createApi(db, setDb) {
           return {role: data.rol === "admin" ? "admin" : ((data.rol === "instructor" || data.rol === "maestro") ? "maestro" : data.rol), name: user, id: user, id_instructor: data.id_instructor, nombre: data.nombre};
         }
         return null;
-      } catch(e) { return null; }
+      } catch(e) {
+        if(e.status === 429) return {error: e.message};
+        return null;
+      }
     },
     // ── ALUMNOS (API real) ──
     getStudents: () => db.students,
@@ -355,7 +348,22 @@ function createApi(db, setDb) {
         };
       })}));
     },
-    updateStudentPersonal:(id,personal)=>mutate(db=>({students:db.students.map(s=>s.id===id?{...s,personal:{...s.personal,...personal}}:s)})),
+    updateStudentPersonal: async (id,personal) => {
+      try {
+        await apiFetch(`/api/alumnos/${id}/personal`, {method:"PUT", body: JSON.stringify({
+          direccion: personal.address||"",
+          tipo_sangre: personal.blood||"",
+          contacto_emergencia: personal.emergency||"",
+          tel_emergencia: personal.emergencyPhone||"",
+          notas_medicas: personal.medNotes||""
+        })});
+      } catch(e) {
+        alert(`No se pudieron guardar los datos: ${e.message}`);
+        return false;
+      }
+      mutate(db=>({students:db.students.map(s=>s.id===id?{...s,personal:{...s.personal,...personal}}:s)}));
+      return true;
+    },
     deleteStudent: async (id) => {
       try { await apiFetch(`/api/alumnos/${id}`, {method:"DELETE"}); } catch(e) { console.error("Error eliminando:", e); }
       mutate(db=>({students:db.students.filter(s=>s.id!==id)}));
@@ -454,29 +462,28 @@ function createApi(db, setDb) {
       mutate(db=>({admin:{...db.admin,...d}}));
     },
     getEvents:()=>db.events.slice().sort((a,b)=>a.date.localeCompare(b.date)),
+    // Solo se actualiza la pantalla si el servidor guardó el cambio
     addEvent: async (d) => {
       try {
         const resp = await apiFetch("/api/eventos", {method:"POST", body: JSON.stringify({
           titulo: d.title, tipo: d.type, fecha: d.date, lugar: d.place, descripcion: d.desc
         })});
-        if(resp?.id_evento) {
-          mutate(db=>({events:[...db.events,{...d,id:String(resp.id_evento)}]}));
-          return;
-        }
-      } catch(e){ console.error(e); }
-      mutate(db=>({events:[...db.events,{...d,id:uid("e")}]}));
+        mutate(db=>({events:[...db.events,mapEvento(resp)]}));
+      } catch(e){ alert(`No se pudo crear el evento: ${e.message}`); }
     },
     updateEvent: async (id,d) => {
       try {
-        await apiFetch(`/api/eventos/${id}`, {method:"PUT", body: JSON.stringify({
+        const resp = await apiFetch(`/api/eventos/${id}`, {method:"PUT", body: JSON.stringify({
           titulo: d.title, tipo: d.type, fecha: d.date, lugar: d.place, descripcion: d.desc
         })});
-      } catch(e){ console.error(e); }
-      mutate(db=>({events:db.events.map(e=>e.id===id?{...e,...d}:e)}));
+        mutate(db=>({events:db.events.map(e=>e.id===id?mapEvento(resp):e)}));
+      } catch(e){ alert(`No se pudo actualizar el evento: ${e.message}`); }
     },
     deleteEvent: async (id) => {
-      try { await apiFetch(`/api/eventos/${id}`, {method:"DELETE"}); } catch(e){ console.error(e); }
-      mutate(db=>({events:db.events.filter(e=>e.id!==id)}));
+      try {
+        await apiFetch(`/api/eventos/${id}`, {method:"DELETE"});
+        mutate(db=>({events:db.events.filter(e=>e.id!==id)}));
+      } catch(e){ alert(`No se pudo eliminar el evento: ${e.message}`); }
     },
     // ── EXÁMENES (API real) ──
     getAllExams: async () => {
@@ -1214,8 +1221,8 @@ const ID_LOOKUP = {
   "0001": {user:"admin", role:"admin", nombre:"Administrador", periodo:""},
 };
 
-const ROLE_LABELS = {admin:"Administrador", alumno:"Alumno", maestro:"Instructor", representante:"Representante"};
-const ROLE_COLORS = {admin:"#c01212", alumno:"#1d4ed8", maestro:"#b8800e", representante:"#166534"};
+const ROLE_LABELS = {admin:"Administrador", alumno:"Alumno", maestro:"Instructor", representante:"Representante", usuario:"Usuario"};
+const ROLE_COLORS = {admin:"#c01212", alumno:"#1d4ed8", maestro:"#b8800e", representante:"#166534", usuario:"#555577"};
 
 const LoginPage = ({onLogin, db}) => {
   const [step, setStep]     = useState(1);   // 1=ID, 2=confirm, 3=pass
@@ -1230,8 +1237,6 @@ const LoginPage = ({onLogin, db}) => {
   const idRef  = useRef(null);
   const passRef = useRef(null);
 
-  const demos = [];
-
   const triggerShake = () => {
     setShake(true);
     setTimeout(()=>setShake(false), 500);
@@ -1240,51 +1245,8 @@ const LoginPage = ({onLogin, db}) => {
   const handleIdSubmit = async (e) => {
     e.preventDefault();
     const trimmed = idVal.trim();
-    // Primero busca en el lookup estático (admin)
-    let match = ID_LOOKUP[trimmed];
-    // Si no está ahí, busca en los alumnos reales cargados en db
-    if (!match && db && db.students) {
-      let students = db.students;
-      // Si la lista está vacía (backend dormido al arrancar), reintentar la carga
-      if (students.length === 0) {
-        try {
-          setErr("Verificando ID...");
-          const res = await fetch(API_URL + "/api/alumnos/publico");
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            students = data;
-            setDb(prev => ({...prev, students: data.map(a => ({
-              id: a.num_control, name: a.nombre, age: 0, belt: "Blanco",
-              parent: "", phone: "", email: "", joined: "", active: true,
-              user: a.num_control, pass: "REAL", firstLogin: false,
-              personal: {address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}
-            }))}));
-          }
-        } catch(_) {}
-        setErr("");
-      }
-      const alumno = students.find(s => s.num_control === trimmed || s.id === trimmed || s.user === trimmed);
-      if (alumno) {
-        match = {user: alumno.num_control || alumno.user || alumno.id, role: "alumno", nombre: alumno.nombre || alumno.name, periodo: ""};
-      }
-    }
-    // Si no es admin ni alumno, busca en los maestros (instructores)
-    if (!match) {
-      try {
-        const res = await fetch(API_URL + "/api/instructores/publico");
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          const maestro = data.find(m => (m.username||"").toLowerCase() === trimmed.toLowerCase());
-          if (maestro) match = {user: maestro.username, role: "maestro", nombre: maestro.nombre || maestro.username, periodo: ""};
-        }
-      } catch(_) {}
-    }
-    if (!match) {
-      setErr("");
-      triggerShake();
-      setTimeout(()=>setErr("ID no encontrado. Verifica e intenta de nuevo."), 100);
-      return;
-    }
+    // No se consultan listas públicas de alumnos ni maestros: el ID se valida junto con la contraseña
+    const match = ID_LOOKUP[trimmed] || {user: trimmed, role: "usuario", nombre: trimmed, periodo: ""};
     setFound(match);
     setErr("");
     setStep(2);
@@ -1299,9 +1261,9 @@ const LoginPage = ({onLogin, db}) => {
       return;
     }
     const result = await onLogin(found.user, pass);
-    if (!result) {
+    if (!result || result.error) {
       triggerShake();
-      setErr("Contraseña incorrecta.");
+      setErr(result?.error || "ID o contraseña incorrectos.");
     }
   };
 
@@ -1400,7 +1362,7 @@ const LoginPage = ({onLogin, db}) => {
                     <div style={{color:"#f0f0fa",fontWeight:600,fontSize:16,marginBottom:2}}>{found.nombre}</div>
                     <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
                       <span style={{fontSize:11,fontWeight:700,color:roleColor,background:`${roleColor}18`,border:`1px solid ${roleColor}40`,borderRadius:20,padding:"2px 9px",letterSpacing:.5,textTransform:"uppercase"}}>{roleLabel}</span>
-                      <span style={{fontSize:11,color:"#555577"}}>Periodo: <span style={{color:"#9090b0"}}>{found.periodo}</span></span>
+                      {found.periodo && <span style={{fontSize:11,color:"#555577"}}>Periodo: <span style={{color:"#9090b0"}}>{found.periodo}</span></span>}
                     </div>
                   </div>
                 </div>
@@ -1442,7 +1404,7 @@ const LoginPage = ({onLogin, db}) => {
           <div style={{marginBottom:12}}>
             <label className="tk-label">Nueva contraseña</label>
             <input className="tk-input" type="password" value={newPass}
-              onChange={e=>setNewPass(e.target.value)} placeholder="Mínimo 4 caracteres"/>
+              onChange={e=>setNewPass(e.target.value)} placeholder="Mínimo 6 caracteres"/>
           </div>
           <div style={{marginBottom:16}}>
             <label className="tk-label">Confirmar contraseña</label>
@@ -1451,10 +1413,10 @@ const LoginPage = ({onLogin, db}) => {
           </div>
           {newPass&&newPass2&&newPass!==newPass2&&<div style={{color:"#f87171",fontSize:12,marginBottom:8}}>⚠ Las contraseñas no coinciden</div>}
           <button className="tk-btn btn-red" style={{width:"100%",justifyContent:"center",padding:"11px 0",fontSize:14}}
-            disabled={newPass.length<4||newPass!==newPass2}
+            disabled={newPass.length<6||newPass!==newPass2}
             onClick={async()=>{
               const result = await onLogin(found.user, newPass, true);
-              if(!result){ setErr("Error al crear contraseña."); setStep(2); }
+              if(!result || result.error){ setErr(result?.error || "Error al crear contraseña."); setStep(2); }
             }}>
             Crear contraseña y entrar →
           </button>
@@ -2485,7 +2447,7 @@ const AdminLockers = ({api, onToast}) => {
 const StudentPersonalEdit = ({student,api,onToast,onClose}) => {
   const [f,setF]=useState({...student.personal||{address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}});
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
-  const save=()=>{api.updateStudentPersonal(student.id,f);onToast("Datos actualizados");onClose();};
+  const save=async()=>{if(await api.updateStudentPersonal(student.id,f)){onToast("Datos actualizados");onClose();}};
   return(
     <div>
       <div className="form-row form-row-2">
@@ -2590,12 +2552,13 @@ const StudentPortal = ({session,api,onLogout}) => {
   const [editPersonal,setEditPersonal]=useState(false);
   const [showDuda,setShowDuda]=useState(false);
   const showToast=(msg)=>setToast(msg);
-  const student=api.getStudent(session.id);
+  // El backend solo regresa los alumnos de este responsable
+  const student=api.getStudent(session.id)||api.getStudents()[0];
   const payments=api.getPayments().filter(p=>p.sid===(student?.respId||`RESP-${session.id}`));
   const events=api.getEvents().filter(e=>e.date>=todayStr());
   const [inscritoEnSedes, setInscritoEnSedes] = useState(new Set());
-  const exams=api.getStudentExams(session.id);
-  const nextExamDate=api.getNextExamDate(session.id);
+  const exams=api.getStudentExams(student?.id);
+  const nextExamDate=api.getNextExamDate(student?.id);
   const daysToExam=daysUntil(nextExamDate);
   const approvedExams=exams.filter(x=>x.passed).length;
   if(!student) return <div style={{padding:40,textAlign:"center",color:"#666688"}}>Alumno no encontrado</div>;
@@ -2861,30 +2824,18 @@ const StudentPortal = ({session,api,onLogout}) => {
 function App() {
   const [db,setDb]=useState(INIT_DB);
   const [session,setSession]=useState(null);
-  const [loading,setLoading]=useState(true);
+  const [loading,setLoading]=useState(false);
   const api=createApi(db,setDb);
 
-  useEffect(()=>{
-    // Carga alumnos públicamente para que el login del paso 1 los encuentre
-    fetch(API_URL+"/api/alumnos/publico").then(r=>r.json()).then(students=>{
-      if(!Array.isArray(students)) return;
-      const mapped = students.map(a=>({
-        id: a.num_control, name: a.nombre,
-        age: 0, belt: "Blanco", parent: "", phone: "", email: "",
-        joined: "", active: true,
-        user: a.num_control, pass: "REAL", firstLogin: false,
-        personal:{address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}
-      }));
-      setDb(prev=>({...prev, students: mapped}));
-    }).catch(()=>{}).finally(()=>setLoading(false));
-  },[]);
+  // Al salir se borra todo lo cargado, para que el siguiente usuario del mismo equipo no vea nada ajeno
+  const logout = () => { _token = null; setDb(INIT_DB); setSession(null); };
 
   const loadApiData = async (tok, tok_id_instructor=null) => {
     try {
       const h = {"Content-Type":"application/json","Authorization":`Bearer ${tok}`};
       const fetchJ = (url) => fetch(API_URL+url,{headers:h}).then(r=>r.json());
       const safeGet = async (url) => { try { return await fetchJ(url); } catch(e) { return []; } };
-      const [students, payments, exams, torneos, clases, equipo, instructores, lockers, sedesData] = await Promise.all([
+      const [students, payments, exams, torneos, clases, equipo, instructores, lockers, sedesData, eventos] = await Promise.all([
         safeGet("/api/alumnos"),
         safeGet("/api/pagos"),
         safeGet("/api/examenes"),
@@ -2894,6 +2845,7 @@ function App() {
         safeGet("/api/instructores"),
         Promise.resolve([]),
         safeGet("/api/sedes"),
+        safeGet("/api/eventos"),
       ]);
       const mappedStudents = Array.isArray(students) ? students.map(a => ({
         id: a.num_control, name: a.nombre,
@@ -2990,27 +2942,30 @@ function App() {
 
       // Set admin instructor data in db.admin
       const myInstr = mappedInstructores.find(i=>i.id===String(tok_id_instructor));
+      // Siempre se reemplaza con lo del servidor (aunque venga vacío) para no mostrar datos de otra sesión
       setDb(prev=>({...prev,
-        students: mappedStudents.length>0?mappedStudents:prev.students,
-        payments: mappedPayments.length>0?mappedPayments:prev.payments,
-        exams: mappedExams.length>0?mappedExams:prev.exams,
-        torneos: mappedTorneos.length>0?mappedTorneos:prev.torneos,
-        clases: mappedClases.length>0?mappedClases:prev.clases,
-        equipo: mappedEquipo.length>0?mappedEquipo:prev.equipo,
-        instructores: mappedInstructores.length>0?mappedInstructores:prev.instructores,
-        lockers: mappedLockers.length>0?mappedLockers:prev.lockers,
-        sedes: Array.isArray(sedesData) && sedesData.length>0 ? sedesData.map(s=>({
+        students: mappedStudents,
+        payments: mappedPayments,
+        exams: mappedExams,
+        torneos: mappedTorneos,
+        clases: mappedClases,
+        equipo: mappedEquipo,
+        instructores: mappedInstructores,
+        lockers: mappedLockers,
+        events: Array.isArray(eventos) ? eventos.map(mapEvento) : [],
+        sedes: Array.isArray(sedesData) ? sedesData.map(s=>({
           id: String(s.id_sede), torneoId: String(s.id_torneo),
           nombre: s.nombre_sede||"", direccion: s.direccion||"",
           cupo_max: s.cupo_max||0, inscritos: s.inscritos||0
-        })) : prev.sedes||[],
+        })) : [],
         admin: myInstr ? {...prev.admin, cargo:myInstr.cargo, grado_cinta:myInstr.grado_cinta, phone:myInstr.telefono||prev.admin.phone, email:myInstr.email||prev.admin.email} : prev.admin,
       }));
     } catch(e){ console.log("Usando datos locales:",e); }
   };
 
   const handleLogin=useCallback(async (user,pass,isFirstLogin=false)=>{
-    setLoading(true);
+    // La pantalla de carga solo aparece tras un login correcto: si se mostrara antes,
+    // desmontaría el formulario y el mensaje de error se perdería
     setSession(null);
     // Si es primer acceso, primero cambia la contraseña en la API
     if(isFirstLogin){
@@ -3027,7 +2982,8 @@ function App() {
       } catch(e){ console.log("Error cambiando contraseña:",e); }
     }
     const result=await api.login(user,pass);
-    if(result){
+    if(result && !result.error){
+      setLoading(true);
       await loadApiData(_token, result.id_instructor||null);
       // Asegurar que id esté en la sesión
       const sessionWithId = {...result, id: result.id || user, displayName: result.nombre || result.name || user};
@@ -3049,8 +3005,8 @@ function App() {
     </div>
   );
   if(!session) return <LoginPage onLogin={handleLogin} db={db}/>;
-  if(session.role==="admin"||session.role==="maestro") return <AdminLayout session={session} api={api} isMaestro={session.role==="maestro"} onLogout={()=>setSession(null)}/>;
-  return <StudentPortal session={session} api={api} onLogout={()=>setSession(null)}/>;
+  if(session.role==="admin"||session.role==="maestro") return <AdminLayout session={session} api={api} isMaestro={session.role==="maestro"} onLogout={logout}/>;
+  return <StudentPortal session={session} api={api} onLogout={logout}/>;
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
