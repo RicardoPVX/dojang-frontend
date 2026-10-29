@@ -695,51 +695,10 @@
       return inv;
     };
 
+    // Arranca vacío: todo se carga del backend al iniciar sesión (nada de datos de ejemplo)
     const INIT_DB = {
-      students: [
-        {
-          id: "s1", name: "Carlos Mendoza", age: 14, belt: "Azul", parent: "Roberto Mendoza", phone: "961-234-5678", email: "roberto.m@email.com", joined: "2023-03-15", active: true, user: "carlos_m", pass: "1234",
-          personal: { address: "Calle Insurgentes 45, Tuxtla", blood: "O+", emergency: "Roberto Mendoza", emergencyPhone: "961-234-5678", medNotes: "" }
-        },
-        {
-          id: "s2", name: "Sofía Ruiz", age: 10, belt: "Amarillo", parent: "Ana Ruiz", phone: "961-876-5432", email: "ana.ruiz@email.com", joined: "2024-01-10", active: true, user: "sofia_r", pass: "1234",
-          personal: { address: "", blood: "A+", emergency: "Ana Ruiz", emergencyPhone: "961-876-5432", medNotes: "" }
-        },
-        {
-          id: "s3", name: "Diego Torres", age: 17, belt: "Rojo", parent: "Miguel Torres", phone: "961-555-0011", email: "miguel.torres@email.com", joined: "2022-08-20", active: true, user: "diego_t", pass: "1234",
-          personal: { address: "", blood: "B+", emergency: "Miguel Torres", emergencyPhone: "961-555-0011", medNotes: "" }
-        },
-        {
-          id: "s4", name: "Valentina Cruz", age: 8, belt: "Blanco", parent: "Lucía Cruz", phone: "961-111-2222", email: "lucia.cruz@email.com", joined: "2025-09-01", active: true, user: "valentina_c", pass: "1234",
-          personal: { address: "", blood: "", emergency: "Lucía Cruz", emergencyPhone: "961-111-2222", medNotes: "" }
-        },
-      ],
-      payments: [
-        { id: "p1", sid: "s1", concept: "Dobok + Protectores completos", total: 2800, paid: 1400, installments: 4, instPaid: 2, instAmt: 700, start: "2026-03-01", nextDue: "2026-05-01", status: "en_proceso", notes: "" },
-        { id: "p2", sid: "s2", concept: "Dobok juvenil", total: 800, paid: 800, installments: 1, instPaid: 1, instAmt: 800, start: "2026-01-10", nextDue: null, status: "liquidado", notes: "" },
-        { id: "p3", sid: "s3", concept: "Casco + Petos para torneo", total: 3500, paid: 700, installments: 5, instPaid: 1, instAmt: 700, start: "2026-04-01", nextDue: "2026-04-25", status: "en_proceso", notes: "" },
-      ],
-      events: [
-        { id: "e1", title: "Examen de Ascenso — Cinturones Blancos", type: "ascenso", date: "2026-05-10", desc: "Examen trimestral para cinturón blanco a amarillo.", place: "Dojang Principal" },
-        { id: "e2", title: "Torneo Regional Chiapas 2026", type: "torneo", date: "2026-06-07", desc: "Competencia regional abierta a todas las categorías.", place: "Polideportivo Tuxtla" },
-        { id: "e3", title: "Examen de Ascenso — Cinturones Intermedios", type: "ascenso", date: "2026-05-24", desc: "Para alumnos de cinturón amarillo a azul.", place: "Dojang Principal" },
-        { id: "e4", title: "Copa Estatal Juvenil 2026", type: "torneo", date: "2026-07-19", desc: "Torneo para categoría infantil y juvenil.", place: "Centro Deportivo Municipal" },
-      ],
-      exams: [
-        { id: "x1", sid: "s1", date: "2023-05-20", fromBelt: "Blanco", toBelt: "Amarillo", passed: true, notes: "Excelente técnica en patadas." },
-        { id: "x2", sid: "s1", date: "2023-07-15", fromBelt: "Amarillo", toBelt: "Naranja", passed: true, notes: "Buen desempeño en sparring." },
-        { id: "x3", sid: "s1", date: "2023-09-10", fromBelt: "Naranja", toBelt: "Verde", passed: true, notes: "" },
-        { id: "x4", sid: "s1", date: "2024-02-08", fromBelt: "Verde", toBelt: "Azul", passed: true, notes: "Demostró liderazgo en el examen grupal." },
-        { id: "x5", sid: "s2", date: "2024-03-14", fromBelt: "Blanco", toBelt: "Amarillo", passed: true, notes: "Primera evaluación. Muy aplicada." },
-        { id: "x6", sid: "s3", date: "2022-10-05", fromBelt: "Blanco", toBelt: "Amarillo", passed: true, notes: "" },
-        { id: "x7", sid: "s3", date: "2022-12-03", fromBelt: "Amarillo", toBelt: "Naranja", passed: true, notes: "" },
-        { id: "x8", sid: "s3", date: "2023-02-11", fromBelt: "Naranja", toBelt: "Verde", passed: true, notes: "" },
-        { id: "x9", sid: "s3", date: "2023-04-22", fromBelt: "Verde", toBelt: "Azul", passed: true, notes: "" },
-        { id: "x10", sid: "s3", date: "2023-07-01", fromBelt: "Azul", toBelt: "Morado", passed: true, notes: "" },
-        { id: "x11", sid: "s3", date: "2023-09-16", fromBelt: "Morado", toBelt: "Rojo", passed: true, notes: "Mejor alumno del ciclo." },
-        { id: "x12", sid: "s2", date: "2026-02-08", fromBelt: "Amarillo", toBelt: "Naranja", passed: false, notes: "Necesita reforzar el poomsae Taegeuk 2." },
-      ],
-      admin: { user: "maestro", pass: "admin123", name: "Maestro Ramírez", email: "maestro@dojang.mx", phone: "961-000-0000", dojangName: "Dojang Taekwondo Tuxtla", address: "Av. Principal 123, Tuxtla Gutiérrez" },
+      students: [], payments: [], events: [], exams: [],
+      admin: { user: "admin", pass: "", name: "Administrador", email: "", phone: "", dojangName: "Dojang Taekwondo", address: "" },
       inventory: buildInitInventory(),
     };
 
@@ -781,15 +740,40 @@
     };
 
     // ─── API REAL (conectada a backend) ───────────────────────────────────────────
-    const API_URL = "https://dojang-backend-niwf.onrender.com";
+    // Abierto en tu PC (localhost) usa el backend local; en Vercel usa Render
+    const API_URL = ["localhost", "127.0.0.1"].includes(location.hostname)
+      ? "http://localhost:3001"
+      : "https://dojang-backend-niwf.onrender.com";
     let _token = null;
 
+    // Lanza error si el backend responde con un estado distinto de 2xx
     async function apiFetch(path, options = {}) {
       const headers = { "Content-Type": "application/json" };
       if (_token) headers["Authorization"] = `Bearer ${_token}`;
       const res = await fetch(API_URL + path, { ...options, headers });
-      return res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const err = new Error(data.error || `Error ${res.status}`);
+        err.status = res.status;
+        throw err;
+      }
+      return data;
     }
+
+    // Avisa al usuario cuando algo no se pudo guardar en el servidor
+    const reportError = (accion, e) => {
+      console.error(accion, e);
+      alert(`No se pudo ${accion}: ${e.message}`);
+    };
+
+    const onlyDate = (d) => (d ? String(d).split("T")[0] : "");
+    const mapEvento = (e) => ({
+      id: String(e.id_evento), title: e.titulo, type: e.tipo || "especial",
+      date: onlyDate(e.fecha), desc: e.descripcion || "", place: e.lugar || ""
+    });
+    const eventoBody = (d) => JSON.stringify({
+      titulo: d.title, tipo: d.type, fecha: d.date, descripcion: d.desc, lugar: d.place
+    });
 
     function createApi(db, setDb) {
       const mutate = (fn) => setDb(prev => ({ ...prev, ...fn(prev) }));
@@ -803,10 +787,13 @@
             });
             if (data.token) {
               _token = data.token;
-              return { role: data.rol === "admin" ? "admin" : data.rol, name: user, id: user };
+              return { role: data.rol, name: user, id: user };
             }
             return null;
-          } catch (e) { return null; }
+          } catch (e) {
+            if (e.status === 429) return { error: e.message };
+            return null;
+          }
         },
         // ── ALUMNOS (API real) ──
         getStudents: () => db.students,
@@ -833,7 +820,7 @@
                 notas_medicas: d.personal?.medNotes || ""
               })
             });
-          } catch (e) { console.error("Error registrando alumno:", e); }
+          } catch (e) { return reportError("registrar al alumno", e); }
           mutate(db => ({
             students: [...db.students, {
               ...d, id: d.user || d.id,
@@ -857,18 +844,34 @@
                 notas_medicas: d.personal?.medNotes || ""
               })
             });
-          } catch (e) { console.error("Error actualizando alumno:", e); }
+          } catch (e) { return reportError("actualizar al alumno", e); }
           mutate(db => ({ students: db.students.map(s => s.id === id ? { ...s, ...d } : s) }));
         },
-        updateStudentPersonal: (id, personal) => mutate(db => ({ students: db.students.map(s => s.id === id ? { ...s, personal: { ...s.personal, ...personal } } : s) })),
+        updateStudentPersonal: async (id, personal) => {
+          try {
+            await apiFetch(`/api/alumnos/${id}/personal`, {
+              method: "PUT", body: JSON.stringify({
+                direccion: personal.address || "",
+                tipo_sangre: personal.blood || "",
+                contacto_emergencia: personal.emergency || "",
+                tel_emergencia: personal.emergencyPhone || "",
+                notas_medicas: personal.medNotes || ""
+              })
+            });
+          } catch (e) { reportError("guardar los datos personales", e); return false; }
+          mutate(db => ({ students: db.students.map(s => s.id === id ? { ...s, personal: { ...s.personal, ...personal } } : s) }));
+          return true;
+        },
         deleteStudent: async (id) => {
-          try { await apiFetch(`/api/alumnos/${id}`, { method: "DELETE" }); } catch (e) { console.error("Error eliminando:", e); }
+          try { await apiFetch(`/api/alumnos/${id}`, { method: "DELETE" }); } catch (e) { return reportError("eliminar al alumno", e); }
           mutate(db => ({ students: db.students.filter(s => s.id !== id) }));
         },
         // ── PAGOS (API real) ──
+        // En la base los pagos son del responsable; en pantalla se asocian a su alumno (p.sid)
         getPayments: () => db.payments,
         getStudentPayments: (sid) => db.payments.filter(p => p.sid === sid),
         addPayment: async (d) => {
+          const student = db.students.find(s => s.id === d.sid);
           try {
             await apiFetch("/api/pagos", {
               method: "POST", body: JSON.stringify({
@@ -877,16 +880,16 @@
                 tipo_pago: d.concept,
                 metodo_pago: d.installments > 1 ? "A plazos" : "Contado",
                 estado_pago: "Pendiente",
-                num_control_responsable: d.sid
+                num_control_responsable: student?.respId || d.sid
               })
             });
-          } catch (e) { }
+          } catch (e) { return reportError("registrar el pago", e); }
           mutate(db => ({ payments: [...db.payments, { ...d, id: uid("p") }] }));
         },
         updatePayment: (id, d) => mutate(db => ({ payments: db.payments.map(p => p.id === id ? { ...p, ...d } : p) })),
         deletePayment: (id) => mutate(db => ({ payments: db.payments.filter(p => p.id !== id) })),
         registerInstallment: async (id) => {
-          try { await apiFetch(`/api/pagos/${id}/abonar`, { method: "PUT", body: JSON.stringify({ abono: db.payments.find(p => p.id === id)?.instAmt || 0 }) }); } catch (e) { }
+          try { await apiFetch(`/api/pagos/${id}/abonar`, { method: "PUT", body: JSON.stringify({ abono: db.payments.find(p => p.id === id)?.instAmt || 0 }) }); } catch (e) { return reportError("registrar el abono", e); }
           mutate(db => ({
             payments: db.payments.map(p => {
               if (p.id !== id) return p;
@@ -895,13 +898,28 @@
             })
           }));
         },
-        // ── EVENTOS (solo local por ahora) ──
         getAdmin: () => db.admin,
         updateAdmin: (d) => mutate(db => ({ admin: { ...db.admin, ...d } })),
+        // ── EVENTOS (API real) ──
         getEvents: () => db.events.slice().sort((a, b) => a.date.localeCompare(b.date)),
-        addEvent: (d) => mutate(db => ({ events: [...db.events, { ...d, id: uid("e") }] })),
-        updateEvent: (id, d) => mutate(db => ({ events: db.events.map(e => e.id === id ? { ...e, ...d } : e) })),
-        deleteEvent: (id) => mutate(db => ({ events: db.events.filter(e => e.id !== id) })),
+        addEvent: async (d) => {
+          try {
+            const row = await apiFetch("/api/eventos", { method: "POST", body: eventoBody(d) });
+            mutate(db => ({ events: [...db.events, mapEvento(row)] }));
+          } catch (e) { reportError("crear el evento", e); }
+        },
+        updateEvent: async (id, d) => {
+          try {
+            const row = await apiFetch(`/api/eventos/${id}`, { method: "PUT", body: eventoBody(d) });
+            mutate(db => ({ events: db.events.map(e => e.id === id ? mapEvento(row) : e) }));
+          } catch (e) { reportError("actualizar el evento", e); }
+        },
+        deleteEvent: async (id) => {
+          try {
+            await apiFetch(`/api/eventos/${id}`, { method: "DELETE" });
+            mutate(db => ({ events: db.events.filter(e => e.id !== id) }));
+          } catch (e) { reportError("eliminar el evento", e); }
+        },
         // ── EXÁMENES (API real) ──
         getAllExams: async () => {
           try {
@@ -928,7 +946,7 @@
                 id_cinta_aspirada: 1
               })
             });
-          } catch (e) { }
+          } catch (e) { return reportError("registrar el examen", e); }
           mutate(db => ({ exams: [...db.exams, { ...d, id: uid("x") }] }));
         },
         updateExam: (id, d) => mutate(db => ({ exams: db.exams.map(x => x.id === id ? { ...x, ...d } : x) })),
@@ -1332,11 +1350,6 @@
       const idRef = useRef(null);
       const passRef = useRef(null);
 
-      // demos rápidos
-      const demos = [
-        { label: "Admin", id: "0001" },
-      ];
-
       const triggerShake = () => {
         setShake(true);
         setTimeout(() => setShake(false), 500);
@@ -1345,42 +1358,8 @@
       const handleIdSubmit = async (e) => {
         e.preventDefault();
         const trimmed = idVal.trim();
-        // Primero busca en el lookup estático (admin)
-        let match = ID_LOOKUP[trimmed];
-        // Si no está ahí, busca en los alumnos reales cargados en db
-        if (!match && db && db.students) {
-          let students = db.students;
-          // Si la lista está vacía (backend dormido al arrancar), reintentar la carga
-          if (students.length === 0) {
-            try {
-              setErr("Verificando ID...");
-              const res = await fetch(API_URL + "/api/alumnos/publico");
-              const data = await res.json();
-              if (Array.isArray(data) && data.length > 0) {
-                students = data;
-                setDb(prev => ({
-                  ...prev, students: data.map(a => ({
-                    id: a.num_control, name: a.nombre, age: 0, belt: "Blanco",
-                    parent: "", phone: "", email: "", joined: "", active: true,
-                    user: a.num_control, pass: "REAL", firstLogin: false,
-                    personal: { address: "", blood: "", emergency: "", emergencyPhone: "", medNotes: "" }
-                  }))
-                }));
-              }
-            } catch (_) { }
-            setErr("");
-          }
-          const alumno = students.find(s => s.num_control === trimmed || s.id === trimmed || s.user === trimmed);
-          if (alumno) {
-            match = { user: alumno.num_control || alumno.user || alumno.id, role: "alumno", nombre: alumno.nombre || alumno.name, periodo: "" };
-          }
-        }
-        if (!match) {
-          setErr("");
-          triggerShake();
-          setTimeout(() => setErr("ID no encontrado. Verifica e intenta de nuevo."), 100);
-          return;
-        }
+        // No se consulta ninguna lista pública de alumnos: el ID se valida junto con la contraseña
+        const match = ID_LOOKUP[trimmed] || { user: trimmed, role: "representante", nombre: trimmed, periodo: "" };
         setFound(match);
         setErr("");
         setStep(2);
@@ -1395,9 +1374,9 @@
           return;
         }
         const result = await onLogin(found.user, pass);
-        if (!result) {
+        if (!result || result.error) {
           triggerShake();
-          setErr("Contraseña incorrecta.");
+          setErr(result?.error || "ID o contraseña incorrectos.");
         }
       };
 
@@ -1496,7 +1475,7 @@
                         <div style={{ color: "#f0f0fa", fontWeight: 600, fontSize: 16, marginBottom: 2 }}>{found.nombre}</div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                           <span style={{ fontSize: 11, fontWeight: 700, color: roleColor, background: `${roleColor}18`, border: `1px solid ${roleColor}40`, borderRadius: 20, padding: "2px 9px", letterSpacing: .5, textTransform: "uppercase" }}>{roleLabel}</span>
-                          <span style={{ fontSize: 11, color: "#555577" }}>Periodo: <span style={{ color: "#9090b0" }}>{found.periodo}</span></span>
+                          {found.periodo && <span style={{ fontSize: 11, color: "#555577" }}>Periodo: <span style={{ color: "#9090b0" }}>{found.periodo}</span></span>}
                         </div>
                       </div>
                     </div>
@@ -1538,7 +1517,7 @@
                 <div style={{ marginBottom: 12 }}>
                   <label className="tk-label">Nueva contraseña</label>
                   <input className="tk-input" type="password" value={newPass}
-                    onChange={e => setNewPass(e.target.value)} placeholder="Mínimo 4 caracteres" />
+                    onChange={e => setNewPass(e.target.value)} placeholder="Mínimo 6 caracteres" />
                 </div>
                 <div style={{ marginBottom: 16 }}>
                   <label className="tk-label">Confirmar contraseña</label>
@@ -1547,29 +1526,16 @@
                 </div>
                 {newPass && newPass2 && newPass !== newPass2 && <div style={{ color: "#f87171", fontSize: 12, marginBottom: 8 }}>⚠ Las contraseñas no coinciden</div>}
                 <button className="tk-btn btn-red" style={{ width: "100%", justifyContent: "center", padding: "11px 0", fontSize: 14 }}
-                  disabled={newPass.length < 4 || newPass !== newPass2}
+                  disabled={newPass.length < 6 || newPass !== newPass2}
                   onClick={async () => {
                     const result = await onLogin(found.user, newPass, true);
-                    if (!result) { setErr("Error al crear contraseña."); setStep(2); }
+                    if (!result || result.error) { setErr(result?.error || "Error al crear contraseña."); setStep(2); }
                   }}>
                   Crear contraseña y entrar →
                 </button>
               </div>
             )}
 
-            {/* Demo hints */}
-            <div style={{ marginTop: 20, padding: "13px 16px", background: "rgba(255,255,255,.02)", borderRadius: 8, border: "1px solid #161626" }}>
-              <div style={{ fontSize: 10, color: "#333355", letterSpacing: 1, textTransform: "uppercase", marginBottom: 9 }}>IDs de demo</div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {demos.map(d => (
-                  <button key={d.id} className="tk-btn btn-ghost btn-sm" onClick={() => { setIdVal(d.id); setErr(""); setStep(1); }} style={{ gap: 6 }}>
-                    <span style={{ color: "#555577", fontFamily: "'Bebas Neue',sans-serif", letterSpacing: .5 }}>{d.id}</span>
-                    <span>{d.label}</span>
-                  </button>
-                ))}
-              </div>
-              <div style={{ fontSize: 10, color: "#2a2a40", marginTop: 8 }}>Contraseña: <span style={{ color: "#333355" }}>admin123</span> (admin) · <span style={{ color: "#333355" }}>1234</span> (alumnos)</div>
-            </div>
           </div>
 
           <style>{`
@@ -1935,7 +1901,7 @@
     const StudentPersonalEdit = ({ student, api, onToast, onClose }) => {
       const [f, setF] = useState({ ...student.personal || { address: "", blood: "", emergency: "", emergencyPhone: "", medNotes: "" } });
       const set = (k, v) => setF(p => ({ ...p, [k]: v }));
-      const save = () => { api.updateStudentPersonal(student.id, f); onToast("Datos actualizados"); onClose(); };
+      const save = async () => { if (await api.updateStudentPersonal(student.id, f)) { onToast("Datos actualizados"); onClose(); } };
       return (
         <div>
           <div className="form-row form-row-2">
@@ -1963,11 +1929,13 @@
       const [toast, setToast] = useState(null);
       const [editPersonal, setEditPersonal] = useState(false);
       const showToast = (msg) => setToast(msg);
-      const student = api.getStudent(session.id);
-      const payments = api.getStudentPayments(session.id);
+      // El backend solo regresa los alumnos de este responsable
+      const student = api.getStudent(session.id) || api.getStudents()[0];
+      const sid = student?.id;
+      const payments = api.getStudentPayments(sid);
       const events = api.getEvents().filter(e => e.date >= todayStr());
-      const exams = api.getStudentExams(session.id);
-      const nextExamDate = api.getNextExamDate(session.id);
+      const exams = api.getStudentExams(sid);
+      const nextExamDate = api.getNextExamDate(sid);
       const daysToExam = daysUntil(nextExamDate);
       const approvedExams = exams.filter(x => x.passed).length;
       if (!student) return <div style={{ padding: 40, textAlign: "center", color: "#666688" }}>Alumno no encontrado</div>;
@@ -2169,35 +2137,21 @@
     function App() {
       const [db, setDb] = useState(INIT_DB);
       const [session, setSession] = useState(null);
-      const [loading, setLoading] = useState(true);
+      const [loading, setLoading] = useState(false);
       const api = createApi(db, setDb);
-
-      useEffect(() => {
-        // Carga alumnos públicamente para que el login del paso 1 los encuentre
-        fetch(API_URL + "/api/alumnos/publico").then(r => r.json()).then(students => {
-          if (!Array.isArray(students)) return;
-          const mapped = students.map(a => ({
-            id: a.num_control, name: a.nombre,
-            age: 0, belt: "Blanco", parent: "", phone: "", email: "",
-            joined: "", active: true,
-            user: a.num_control, pass: "REAL", firstLogin: false,
-            personal: { address: "", blood: "", emergency: "", emergencyPhone: "", medNotes: "" }
-          }));
-          setDb(prev => ({ ...prev, students: mapped }));
-        }).catch(() => { }).finally(() => setLoading(false));
-      }, []);
 
       const loadApiData = async (tok) => {
         try {
           const h = { "Content-Type": "application/json", "Authorization": `Bearer ${tok}` };
           const fetchJ = (url) => fetch(API_URL + url, { headers: h }).then(r => r.json());
-          const [students, payments, exams] = await Promise.all([
+          const [students, payments, exams, eventos] = await Promise.all([
             fetchJ("/api/alumnos"),
             fetchJ("/api/pagos"),
             fetchJ("/api/examenes"),
+            fetchJ("/api/eventos"),
           ]);
           const mappedStudents = Array.isArray(students) ? students.map(a => ({
-            id: a.num_control, name: a.nombre,
+            id: a.num_control, name: a.nombre, respId: a.num_control_responsable,
             age: a.fecha_nacimiento ? Math.floor((new Date() - new Date(a.fecha_nacimiento)) / (365.25 * 24 * 60 * 60 * 1000)) : 0,
             belt: a.cinta_color || "Blanco", parent: a.responsable_nombre || "",
             phone: a.responsable_tel || "",
@@ -2212,8 +2166,10 @@
               medNotes: a.notas_medicas || ""
             }
           })) : [];
+          // Cada pago pertenece a un responsable: se muestra con el alumno de ese responsable
+          const studentOfResp = (respId) => mappedStudents.find(s => s.respId === respId)?.id || respId;
           const mappedPayments = Array.isArray(payments) ? payments.map(p => ({
-            id: String(p.id_pago), sid: p.num_control_responsable,
+            id: String(p.id_pago), sid: studentOfResp(p.num_control_responsable),
             concept: p.tipo_pago || "Pago", total: parseFloat(p.monto_total) || 0,
             paid: parseFloat(p.monto_abonado) || 0,
             installments: p.metodo_pago === "A plazos" ? 4 : 1,
@@ -2223,17 +2179,18 @@
           })) : [];
           const mappedExams = Array.isArray(exams) ? exams.map(x => ({
             id: String(x.id_examen), sid: x.num_control_alumno,
-            date: x.fecha || todayStr(), fromBelt: "Blanco",
+            date: onlyDate(x.fecha) || todayStr(), fromBelt: "Blanco",
             toBelt: x.cinta_aspirada_color || "Amarillo",
             passed: x.resultado === "Aprobado", notes: x.observaciones || ""
           })) : [];
           setDb(prev => ({
             ...prev,
-            students: mappedStudents.length > 0 ? mappedStudents : prev.students,
-            payments: mappedPayments.length > 0 ? mappedPayments : prev.payments,
-            exams: mappedExams.length > 0 ? mappedExams : prev.exams,
+            students: mappedStudents,
+            payments: mappedPayments,
+            exams: mappedExams,
+            events: Array.isArray(eventos) ? eventos.map(mapEvento) : [],
           }));
-        } catch (e) { console.log("Usando datos locales:", e); }
+        } catch (e) { reportError("cargar los datos del servidor", e); }
       };
 
       const handleLogin = useCallback(async (user, pass, isFirstLogin = false) => {
@@ -2254,7 +2211,7 @@
           } catch (e) { console.log("Error cambiando contraseña:", e); }
         }
         const result = await api.login(user, pass);
-        if (result) {
+        if (result && !result.error) {
           await loadApiData(_token);
           // Asegurar que id esté en la sesión
           const sessionWithId = { ...result, id: result.id || user };
@@ -2272,7 +2229,7 @@
         </div>
       );
       if (!session) return <LoginPage onLogin={handleLogin} db={db} />;
-      if (session.role === "admin") return <AdminLayout session={session} api={api} onLogout={() => setSession(null)} />;
+      if (session.role === "admin" || session.role === "instructor") return <AdminLayout session={session} api={api} onLogout={() => setSession(null)} />;
       return <StudentPortal session={session} api={api} onLogout={() => setSession(null)} />;
     }
 
