@@ -269,8 +269,18 @@ const mapPago = (p) => {
     start: p.fecha_pago ? String(p.fecha_pago).split("T")[0] : todayStr(),
     nextDue: p.proximo_vencimiento ? String(p.proximo_vencimiento).split("T")[0] : null,
     status: p.estado_pago==="Liquidado"?"liquidado":p.estado_pago==="Vencido"?"vencido":"en_proceso",
-    notes: p.notas||""
+    notes: p.notas||"",
+    mesPagado: parseInt(p.mes_correspondiente)||null,
+    anioPagado: p.anio_correspondiente||null
   };
+};
+// Una mensualidad cuenta para el mes que se pagó, no para la fecha en que se registró
+// (la de mayo pagada el 1 de junio es de mayo). Sin ese dato se usa la fecha.
+const esMensualidadDe = (p, mes, anio) => {
+  if(p.concept!=="Mensualidad") return false;
+  if(p.mesPagado) return p.mesPagado===mes+1 && p.anioPagado===anio;
+  const d = parseDate(p.start);
+  return d.getMonth()===mes && d.getFullYear()===anio;
 };
 const pagoBody = (d, respId) => JSON.stringify({
   monto_total: d.total,
@@ -417,7 +427,7 @@ function createApi(db, setDb) {
       const respId = db.students.find(s=>s.id===d.sid)?.respId || `RESP-${d.sid}`;
       try {
         const resp = await apiFetch(`/api/pagos/${id}`, {method:"PUT", body: pagoBody(d, respId)});
-        mutate(db=>({payments:db.payments.map(p=>p.id===id?mapPago(resp):p)}));
+        mutate(db=>({payments:db.payments.map(p=>p.id===id?{...mapPago(resp),mesPagado:p.mesPagado,anioPagado:p.anioPagado}:p)}));
         return true;
       } catch(e) {
         alert(`No se pudo actualizar el pago: ${e.message}`);
@@ -433,10 +443,8 @@ function createApi(db, setDb) {
     pagarMensualidad: async (student, checked, mes, anio, fecha) => {
       const respId = student.respId || `RESP-${student.id}`;
       const existing = db.payments.find(p => {
-        if (p.concept !== "Mensualidad") return false;
         if (p.sid !== respId) return false;
-        const d = parseDate(p.start);
-        return d.getMonth() === mes && d.getFullYear() === anio;
+        return esMensualidadDe(p, mes, anio);
       });
       if (checked && !existing) {
         try {
@@ -455,7 +463,8 @@ function createApi(db, setDb) {
               id: String(resp.id_pago), sid: respId,
               concept:"Mensualidad", total:500, paid:500,
               installments:1, instPaid:1, instAmt:500,
-              start: fechaPago, nextDue:null, status:"liquidado", notes:""
+              start: fechaPago, nextDue:null, status:"liquidado", notes:"",
+              mesPagado: mes+1, anioPagado: anio
             }]}));
           }
         } catch(e){ alert(`No se pudo registrar la mensualidad: ${e.message}`); }
@@ -470,7 +479,7 @@ function createApi(db, setDb) {
     registerInstallment: async (id) => {
       try {
         const resp = await apiFetch(`/api/pagos/${id}/abonar`, {method:"PUT", body: JSON.stringify({})});
-        mutate(db=>({payments:db.payments.map(p=>p.id===id?mapPago(resp):p)}));
+        mutate(db=>({payments:db.payments.map(p=>p.id===id?{...mapPago(resp),mesPagado:p.mesPagado,anioPagado:p.anioPagado}:p)}));
       } catch(e) { alert(`No se pudo registrar el pago: ${e.message}`); }
     },
     // ── EVENTOS (solo local por ahora) ──
@@ -1587,11 +1596,9 @@ const MensualidadesPanel = ({api}) => {
   const prevMes = () => { if(mes===0){setMes(11);setAnio(a=>a-1);}else setMes(m=>m-1); };
   const nextMes = () => { if(mes===11){setMes(0);setAnio(a=>a+1);}else setMes(m=>m+1); };
   const pagoDeAlumno = (s) => payments.find(p => {
-    if(p.concept!=="Mensualidad") return false;
     const respId = s.respId||`RESP-${s.id}`;
     if(p.sid!==respId) return false;
-    const d = parseDate(p.start);
-    return d.getMonth()===mes && d.getFullYear()===anio;
+    return esMensualidadDe(p,mes,anio);
   });
   const totalPagados = students.filter(s=>!!pagoDeAlumno(s)).length;
   const hoy = new Date(); hoy.setHours(0,0,0,0);
@@ -2728,7 +2735,7 @@ const StudentPortal = ({session,api,onLogout}) => {
               const hoy=new Date(); hoy.setHours(0,0,0,0);
               const mes=hoy.getMonth(), anio=hoy.getFullYear();
               const dia=student.diaPago||1;
-              const pagada=payments.some(p=>{ if(p.concept!=="Mensualidad")return false; const d=parseDate(p.start); return d.getMonth()===mes&&d.getFullYear()===anio; });
+              const pagada=payments.some(p=>esMensualidadDe(p,mes,anio));
               const due=new Date(anio,mes,dia);
               const vencida=!pagada&&hoy>due;
               const color=pagada?"#4ade80":vencida?"#f87171":"#d4960f";
