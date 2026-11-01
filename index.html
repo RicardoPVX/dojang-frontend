@@ -1686,9 +1686,10 @@ const HistorialMeses = ({api}) => {
     const finDeMes=new Date(anio,mes+1,0);
     const lista=students.map(s=>({s,pago:delMes.find(p=>pagoEsDe(p,s))}))
       .filter(({s,pago})=>pago||!s.joined||parseDate(s.joined)<=finDeMes);
-    const conocidos=lista.filter(x=>x.pago).map(x=>x.pago.id);
-    const deBaja=delMes.filter(p=>!conocidos.includes(p.id));
-    return {c,mes,anio,pagaron:lista.filter(x=>x.pago),noPagaron:lista.filter(x=>!x.pago),deBaja};
+    // Es de baja solo si no pertenece a ningún alumno actual; un pago doble no es una baja
+    const deBaja=delMes.filter(p=>!students.some(s=>pagoEsDe(p,s)));
+    const pagosDe=(s)=>delMes.filter(p=>pagoEsDe(p,s)).length;
+    return {c,mes,anio,pagaron:lista.filter(x=>x.pago).map(x=>({...x,veces:pagosDe(x.s)})),noPagaron:lista.filter(x=>!x.pago),deBaja,totalPagos:delMes.length};
   });
   if(meses.length===0) return <div className="card empty-state" style={{padding:40}}><div className="empty-icon">📅</div><div>Todavía no hay meses en el historial</div></div>;
   return(
@@ -1701,14 +1702,14 @@ const HistorialMeses = ({api}) => {
             <span style={{color:"#dde0ee",fontWeight:700,fontSize:14,minWidth:150}}>{MESES[m.mes]} {m.anio}</span>
             <span style={{color:"#4ade80",fontSize:13,fontWeight:600}}>{totalPagaron} pagaron</span>
             <span style={{color:"#f87171",fontSize:13,fontWeight:600}}>{m.noPagaron.length} no pagaron</span>
-            <span style={{marginLeft:"auto",color:"#9090b0",fontSize:13}}>{mxn(totalPagaron*500)} {abierto===m.c?"▲":"▼"}</span>
+            <span style={{marginLeft:"auto",color:"#9090b0",fontSize:13}}>{mxn(m.totalPagos*500)} {abierto===m.c?"▲":"▼"}</span>
           </button>
           {abierto===m.c&&(
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:16,padding:"4px 18px 18px",borderTop:"1px solid #1a1a28"}}>
               <div>
                 <div style={{color:"#4ade80",fontSize:11,fontWeight:700,letterSpacing:.8,textTransform:"uppercase",margin:"12px 0 8px"}}>Pagaron</div>
                 {totalPagaron===0&&<div style={{color:"#555577",fontSize:13}}>Nadie registrado</div>}
-                {m.pagaron.map(({s,pago})=><div key={s.id} style={{display:"flex",justifyContent:"space-between",gap:10,padding:"5px 0",fontSize:13,color:"#dde0ee"}}><span>{s.name}</span><span style={{color:"#666688",fontSize:12,whiteSpace:"nowrap"}}>{fmtDate(pago.start)}</span></div>)}
+                {m.pagaron.map(({s,pago,veces})=><div key={s.id} style={{display:"flex",justifyContent:"space-between",gap:10,padding:"5px 0",fontSize:13,color:"#dde0ee"}}><span>{s.name}{veces>1&&<span style={{color:"#d4960f",fontSize:12}}> · ⚠ {veces} pagos</span>}</span><span style={{color:"#666688",fontSize:12,whiteSpace:"nowrap"}}>{fmtDate(pago.start)}</span></div>)}
                 {m.deBaja.map(p=><div key={p.id} style={{display:"flex",justifyContent:"space-between",gap:10,padding:"5px 0",fontSize:13,color:"#9090b0"}}><span>Alumno dado de baja{p.tutorNombre?` (tutor: ${p.tutorNombre})`:""}</span><span style={{color:"#666688",fontSize:12,whiteSpace:"nowrap"}}>{fmtDate(p.start)}</span></div>)}
               </div>
               <div>
