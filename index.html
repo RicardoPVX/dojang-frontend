@@ -98,10 +98,10 @@ const { useState, useEffect, useCallback, useRef } = React;
 const BELT_MAP = {
   Blanco:{bg:"#e5e7eb",text:"#374151"},Amarillo:{bg:"#fef08a",text:"#713f12"},
   Naranja:{bg:"#fdba74",text:"#7c2d12"},Verde:{bg:"#86efac",text:"#14532d"},
-  Azul:{bg:"#93c5fd",text:"#1e3a8a"},Morado:{bg:"#d8b4fe",text:"#3b0764"},
+  Azul:{bg:"#93c5fd",text:"#1e3a8a"},Marron:{bg:"#b08968",text:"#3e2a14"},
   Rojo:{bg:"#fca5a5",text:"#7f1d1d"},Negro:{bg:"#374151",text:"#f9fafb"},
 };
-const BELT_LIST = ["Blanco","Amarillo","Naranja","Verde","Azul","Morado","Rojo","Negro"];
+const BELT_LIST = ["Blanco","Amarillo","Naranja","Verde","Azul","Marron","Rojo","Negro"];
 const STATUS = {
   en_proceso:{label:"En proceso",bg:"rgba(184,128,14,.15)",text:"#d4960f",bd:"rgba(184,128,14,.3)"},
   liquidado:{label:"Liquidado",bg:"rgba(34,197,94,.15)",text:"#4ade80",bd:"rgba(34,197,94,.3)"},
@@ -302,6 +302,11 @@ const mapEvento = (e) => ({
   date: e.fecha ? String(e.fecha).split("T")[0] : "", desc: e.descripcion||"", place: e.lugar||""
 });
 
+// La contraseña temporal solo se muestra esta vez; el cuadro permite copiarla
+const mostrarAcceso = (id, pass) => {
+  window.prompt(`Acceso de la familia. ID: ${id}\nCopia y entrega esta contraseña temporal; no se volverá a mostrar:`, pass);
+};
+
 function createApi(db, setDb) {
   const mutate = (fn) => setDb(prev => ({...prev,...fn(prev)}));
   return {
@@ -314,29 +319,38 @@ function createApi(db, setDb) {
         });
         if(data.token) {
           _token = data.token;
-          return {role: data.rol === "admin" ? "admin" : ((data.rol === "instructor" || data.rol === "maestro") ? "maestro" : data.rol), name: user, id: user, id_instructor: data.id_instructor, nombre: data.nombre};
+          return {role: data.rol === "admin" ? "admin" : ((data.rol === "instructor" || data.rol === "maestro") ? "maestro" : data.rol), name: data.username, id: data.username, id_instructor: data.id_instructor, nombre: data.nombre, debeCambiar: !!data.debe_cambiar};
         }
         return null;
       } catch(e) {
-        if(e.status === 429) return {error: e.message};
+        if(e.status === 429 || e.status === 403) return {error: e.message};
         return null;
       }
+    },
+    cambiarPass: async (nuevaPassword) => {
+      await apiFetch("/api/auth/cambiar-pass", {method:"POST", body: JSON.stringify({nuevaPassword})});
+    },
+    // Genera una contraseña temporal nueva para la familia del alumno
+    resetAcceso: async (id) => {
+      try {
+        const r = await apiFetch(`/api/alumnos/${id}/reset-acceso`, {method:"POST"});
+        mostrarAcceso(r.username, r.password_temporal);
+      } catch(e) { alert(`No se pudo generar la contraseña: ${e.message}`); }
     },
     // ── ALUMNOS (API real) ──
     getStudents: () => db.students,
     getStudent: (id) => db.students.find(s=>s.id===id),
     addStudent: async (d) => {
-      const beltMap = {"Blanco":1,"Amarillo":2,"Naranja":3,"Verde":4,"Azul":5,"Morado":6,"Rojo":7,"Negro":8};
+      const beltMap = {"Blanco":1,"Amarillo":2,"Naranja":3,"Verde":4,"Azul":5,"Marron":6,"Rojo":7,"Negro":8};
       try {
-        await apiFetch("/api/alumnos/registro-completo", {method:"POST", body: JSON.stringify({
+        const resp = await apiFetch("/api/alumnos/registro-completo", {method:"POST", body: JSON.stringify({
           num_control: d.user || d.id,
           nombre: d.name,
           fecha_nacimiento: d.dob || d.fecha_nacimiento || "2000-01-01",
+          id_cinta_actual: beltMap[d.belt] || 1,
           responsable_nombre: d.parent || d.name,
           responsable_telefono: d.phone || "",
           responsable_direccion: d.personal?.address || "",
-          username: d.user || d.id,
-          password: d.pass || "CAMBIAR",
           email: d.email || "",
           direccion: d.personal?.address || "",
           tipo_sangre: d.personal?.blood || "",
@@ -345,16 +359,25 @@ function createApi(db, setDb) {
           notas_medicas: d.personal?.medNotes || "",
           dia_pago: d.diaPago || 1
         })});
+        // El servidor decide el ID final: el generado aquí puede estar ocupado por un alumno ya borrado
+        const idFinal = resp.alumno.num_control;
         // Assign class if provided
         if(d.claseId){
-          try { await apiFetch(`/api/clases/alumno/${d.user||d.id}`, {method:"PUT", body: JSON.stringify({id_clase:d.claseId})}); } catch(e2){}
+          try { await apiFetch(`/api/clases/alumno/${idFinal}`, {method:"PUT", body: JSON.stringify({id_clase:d.claseId})}); }
+          catch(e2){ alert(`El alumno se registró, pero no se pudo asignar su clase: ${e2.message}`); }
         }
-      } catch(e) { console.error("Error registrando alumno:", e); }
-      mutate(db=>({students:[...db.students,{...d,id:d.user||d.id,
-        personal:d.personal||{address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}}]}));
+        const age = d.dob ? Math.floor((new Date()-new Date(d.dob))/(365.25*24*60*60*1000)) : 0;
+        mutate(db=>({students:[...db.students,{...d,age,parent:d.parent||d.name,id:idFinal,user:idFinal,respId:resp.alumno.num_control_responsable,
+          personal:d.personal||{address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}}]}));
+        mostrarAcceso(idFinal, resp.password_temporal);
+        return true;
+      } catch(e) {
+        alert(`No se pudo registrar al alumno: ${e.message}`);
+        return false;
+      }
     },
     updateStudent: async (id, d) => {
-      const beltMap = {"Blanco":1,"Amarillo":2,"Naranja":3,"Verde":4,"Azul":5,"Morado":6,"Rojo":7,"Negro":8};
+      const beltMap = {"Blanco":1,"Amarillo":2,"Naranja":3,"Verde":4,"Azul":5,"Marron":6,"Rojo":7,"Negro":8};
       try {
         await apiFetch(`/api/alumnos/${id}`, {method:"PUT", body: JSON.stringify({
           nombre: d.name,
@@ -372,10 +395,14 @@ function createApi(db, setDb) {
           notas_medicas: d.personal?.medNotes || "",
           dia_pago: d.diaPago || 1
         })});
-      } catch(e) { console.error("Error actualizando alumno:", e); }
+      } catch(e) {
+        alert(`No se pudo actualizar al alumno: ${e.message}`);
+        return false;
+      }
       // Update class assignment if changed
       if (d.claseId !== undefined) {
-        try { await apiFetch(`/api/clases/alumno/${id}`, {method:"PUT", body: JSON.stringify({id_clase:d.claseId||null})}); } catch(e){}
+        try { await apiFetch(`/api/clases/alumno/${id}`, {method:"PUT", body: JSON.stringify({id_clase:d.claseId||null})}); }
+        catch(e){ alert(`El alumno se guardó, pero no se pudo cambiar su clase: ${e.message}`); }
       }
       mutate(db=>({students:db.students.map(s=>{
         if(s.id!==id) return s;
@@ -387,6 +414,7 @@ function createApi(db, setDb) {
           claseHora: claseInfo ? `${claseInfo.horaInicio} - ${claseInfo.horaFin}` : (d.claseId?s.claseHora:null)
         };
       })}));
+      return true;
     },
     updateStudentPersonal: async (id,personal) => {
       try {
@@ -405,8 +433,10 @@ function createApi(db, setDb) {
       return true;
     },
     deleteStudent: async (id) => {
-      try { await apiFetch(`/api/alumnos/${id}`, {method:"DELETE"}); } catch(e) { console.error("Error eliminando:", e); }
-      mutate(db=>({students:db.students.filter(s=>s.id!==id)}));
+      try {
+        await apiFetch(`/api/alumnos/${id}`, {method:"DELETE"});
+        mutate(db=>({students:db.students.filter(s=>s.id!==id)}));
+      } catch(e) { alert(`No se pudo eliminar al alumno: ${e.message}`); }
     },
     // ── PAGOS (API real) ──
     getPayments: () => db.payments,
@@ -532,7 +562,7 @@ function createApi(db, setDb) {
     },
     getStudentExams:(sid)=>db.exams.filter(x=>x.sid===sid).slice().sort((a,b)=>a.date.localeCompare(b.date)),
     addExam: async (d) => {
-      const beltMap={"Blanco":1,"Amarillo":2,"Naranja":3,"Verde":4,"Azul":5,"Morado":6,"Rojo":7,"Negro":8};
+      const beltMap={"Blanco":1,"Amarillo":2,"Naranja":3,"Verde":4,"Azul":5,"Marron":6,"Rojo":7,"Negro":8};
       try {
         const resp = await apiFetch("/api/examenes", {method:"POST", body: JSON.stringify({
           fecha: d.date,
@@ -551,7 +581,7 @@ function createApi(db, setDb) {
       mutate(db=>({exams:[...db.exams,{...d,id:uid("x")}]}));
     },
     updateExam: async (id,d) => {
-      const beltMap={"Blanco":1,"Amarillo":2,"Naranja":3,"Verde":4,"Azul":5,"Morado":6,"Rojo":7,"Negro":8};
+      const beltMap={"Blanco":1,"Amarillo":2,"Naranja":3,"Verde":4,"Azul":5,"Marron":6,"Rojo":7,"Negro":8};
       try {
         await apiFetch(`/api/examenes/${id}`, {method:"PUT", body: JSON.stringify({
           fecha: d.date,
@@ -1072,7 +1102,12 @@ const AdminProfile = ({api,onToast,session}) => {
   const [modal,setModal] = useState(null);
   const set = (k,v)=>{setF(p=>({...p,[k]:v}));setChanged(true);};
   const save = async ()=>{
-    await api.updateMiPerfil(f);
+    if(f.pass){
+      try { await api.cambiarPass(f.pass); }
+      catch(e){ alert(`No se pudo cambiar la contraseña: ${e.message}`); return; }
+      setF(p=>({...p,pass:""}));
+    }
+    await api.updateMiPerfil({...f,pass:""});
     setChanged(false);
     onToast("Perfil actualizado correctamente");
   };
@@ -1107,7 +1142,7 @@ const AdminProfile = ({api,onToast,session}) => {
         <div className="form-row form-row-2">
           <div><label className="tk-label">Usuario</label><input className="tk-input" readOnly style={{opacity:.6}} value={f.user||""}/></div>
           <div>
-            <label className="tk-label">Contraseña actual</label>
+            <label className="tk-label">Nueva contraseña (mínimo 6)</label>
             <div style={{position:"relative"}}>
               <input className="tk-input" type={showPass?"text":"password"} value={f.pass||""} onChange={e=>set("pass",e.target.value)} style={{paddingRight:80}}/>
               <button type="button" onClick={()=>setShowPass(p=>!p)} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:"#666688",cursor:"pointer",fontSize:11}}>{showPass?"Ocultar":"Mostrar"}</button>
@@ -1286,15 +1321,13 @@ const LoginPage = ({onLogin, db}) => {
 
   const handlePassSubmit = async (e) => {
     e.preventDefault();
-    // Si el usuario escribió "CAMBIAR" como contraseña, ir al paso 3
-    if(pass.toUpperCase() === "CAMBIAR"){
-      setStep(3);
-      return;
-    }
     const result = await onLogin(found.user, pass);
     if (!result || result.error) {
       triggerShake();
       setErr(result?.error || "ID o contraseña incorrectos.");
+    } else if (result.debeCambiar) {
+      setErr("");
+      setStep(3);
     }
   };
 
@@ -1430,7 +1463,7 @@ const LoginPage = ({onLogin, db}) => {
         {step===3&&(
         <div className="card" style={{padding:26,marginTop:16}}>
           <div style={{marginBottom:16,color:"#9090b0",fontSize:13,textAlign:"center"}}>
-            Es tu primer acceso. Elige una contraseña para tu cuenta.
+            Entraste con una contraseña temporal. Elige la tuya para continuar.
           </div>
           <div style={{marginBottom:12}}>
             <label className="tk-label">Nueva contraseña</label>
@@ -1476,7 +1509,7 @@ const LoginPage = ({onLogin, db}) => {
 
 // ─── STUDENT FORM ─────────────────────────────────────────────────────────────
 const StudentForm = ({initial,onSave,onClose,api}) => {
-  const empty={name:"",dob:"",belt:"Blanco",parent:"",phone:"",email:"",joined:todayStr(),active:true,user:"",pass:"CAMBIAR",claseId:"",diaPago:1,personal:{address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}};
+  const empty={name:"",dob:"",belt:"Blanco",parent:"",phone:"",email:"",joined:todayStr(),active:true,user:"",claseId:"",diaPago:1,personal:{address:"",blood:"",emergency:"",emergencyPhone:"",medNotes:""}};
   const [f,setF] = useState(initial||empty);
   const set = (k,v)=>setF(p=>({...p,[k]:v}));
   const setP = (k,v)=>setF(p=>({...p,personal:{...p.personal,[k]:v}}));
@@ -1485,13 +1518,13 @@ const StudentForm = ({initial,onSave,onClose,api}) => {
     const newId = v.trim().length>=2 ? genStudentId(v, existingIds) : "";
     setF(p=>({...p, name:v, user: initial ? p.user : newId}));
   };
-  const submit = (e)=>{e.preventDefault();onSave({...f,id:f.user});onClose();};
+  const submit = async (e)=>{e.preventDefault();if(await onSave({...f,id:f.user}))onClose();};
   return(
     <form onSubmit={submit}>
       <div style={{fontSize:11,color:"#c01212",textTransform:"uppercase",letterSpacing:.8,marginBottom:12}}>Datos del alumno</div>
       <div className="form-row form-row-2">
         <div><label className="tk-label">Nombre completo</label><input className="tk-input" required value={f.name} onChange={e=>handleName(e.target.value)}/></div>
-        <div><label className="tk-label">Fecha de nacimiento</label><input className="tk-input" type="date" required max={todayStr()} value={f.dob||""} onChange={e=>set("dob",e.target.value)}/></div>
+        <div><label className="tk-label">Fecha de nacimiento</label><input className="tk-input" type="date" required min="1930-01-01" max={todayStr()} value={f.dob||""} onChange={e=>set("dob",e.target.value)}/></div>
       </div>
       <div className="form-row form-row-3">
         <div><label className="tk-label">Cinturón</label><select className="tk-input" value={f.belt} onChange={e=>set("belt",e.target.value)}>{BELT_LIST.map(b=><option key={b}>{b}</option>)}</select></div>
@@ -1523,7 +1556,7 @@ const StudentForm = ({initial,onSave,onClose,api}) => {
         <div style={{fontSize:11,color:"#555577",letterSpacing:.8,textTransform:"uppercase",marginBottom:10}}>Acceso al portal</div>
         <div className="form-row form-row-2">
           <div><label className="tk-label">ID / Usuario</label><input className="tk-input" readOnly style={{opacity:.7,cursor:"not-allowed"}} value={f.user} placeholder="Se genera al escribir el nombre"/></div>
-          <div><label className="tk-label">Contraseña</label><input className="tk-input" value={f.pass} onChange={e=>set("pass",e.target.value)}/></div>
+          <div style={{fontSize:12,color:"#7070a0",alignSelf:"center"}}>La contraseña temporal se genera al guardar y solo se muestra una vez.</div>
         </div>
       </div>
       <div className="form-actions">
@@ -1568,6 +1601,7 @@ const AdminStudents = ({api,isMaestro}) => {
                     <div style={{display:"flex",gap:5}}>
                       <button className="tk-btn btn-blue btn-sm" title="Exámenes" onClick={()=>setModal({exams:s})}><Icon name="diploma" size={13}/></button>
                       <button className="tk-btn btn-ghost btn-sm" onClick={()=>setModal({edit:s})}><Icon name="edit" size={13}/></button>
+                      {!isMaestro&&<button className="tk-btn btn-ghost btn-sm" title="Nueva contraseña temporal" onClick={()=>{if(window.confirm(`¿Generar una contraseña temporal nueva para ${s.name}? La actual dejará de servir.`))api.resetAcceso(s.id);}}>🔑</button>}
                       {!isMaestro&&<button className="tk-btn btn-danger btn-sm" onClick={()=>setModal({del:s.id})}><Icon name="trash" size={13}/></button>}
                     </div>
                   </td>
@@ -2989,22 +3023,13 @@ function App() {
     // La pantalla de carga solo aparece tras un login correcto: si se mostrara antes,
     // desmontaría el formulario y el mensaje de error se perdería
     setSession(null);
-    // Si es primer acceso, primero cambia la contraseña en la API
+    // Tras entrar con la temporal ya hay token: se usa para fijar la contraseña nueva
     if(isFirstLogin){
-      try {
-        // Login con contraseña temporal para obtener token
-        const tmp = await api.login(user,"CAMBIAR");
-        if(tmp && _token){
-          await fetch(API_URL+"/api/auth/cambiar-pass",{
-            method:"POST",
-            headers:{"Content-Type":"application/json","Authorization":`Bearer ${_token}`},
-            body: JSON.stringify({nuevaPassword: pass})
-          });
-        }
-      } catch(e){ console.log("Error cambiando contraseña:",e); }
+      try { await api.cambiarPass(pass); }
+      catch(e){ return {error: e.message}; }
     }
     const result=await api.login(user,pass);
-    if(result && !result.error){
+    if(result && !result.error && !result.debeCambiar){
       setLoading(true);
       await loadApiData(_token, result.id_instructor||null);
       // Asegurar que id esté en la sesión
