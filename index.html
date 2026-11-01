@@ -257,6 +257,36 @@ async function apiFetch(path, options={}) {
   return data;
 }
 
+// sid es el responsable: en la base los pagos son de la familia, no del alumno
+const mapPago = (p) => {
+  const total = parseFloat(p.monto_total)||0;
+  const cuotas = p.num_cuotas||1;
+  return {
+    id: String(p.id_pago), sid: p.num_control_responsable,
+    concept: p.tipo_pago||"Pago", total, paid: parseFloat(p.monto_abonado)||0,
+    installments: cuotas, instPaid: p.cuotas_pagadas||0,
+    instAmt: parseFloat(p.monto_cuota)||Math.round(total/cuotas*100)/100,
+    start: p.fecha_pago ? String(p.fecha_pago).split("T")[0] : todayStr(),
+    nextDue: p.proximo_vencimiento ? String(p.proximo_vencimiento).split("T")[0] : null,
+    status: p.estado_pago==="Liquidado"?"liquidado":p.estado_pago==="Vencido"?"vencido":"en_proceso",
+    notes: p.notas||""
+  };
+};
+const pagoBody = (d, respId) => JSON.stringify({
+  monto_total: d.total,
+  monto_abonado: d.paid||0,
+  fecha_pago: d.start,
+  metodo_pago: d.installments>1?"A plazos":"Contado",
+  tipo_pago: d.concept,
+  estado_pago: d.status==="liquidado"?"Liquidado":d.status==="vencido"?"Vencido":"Pendiente",
+  num_control_responsable: respId,
+  num_cuotas: d.installments,
+  cuotas_pagadas: d.instPaid||0,
+  monto_cuota: d.instAmt||null,
+  proximo_vencimiento: d.nextDue||null,
+  notas: d.notes||""
+});
+
 const mapEvento = (e) => ({
   id: String(e.id_evento), title: e.titulo||"", type: e.tipo||"especial",
   date: e.fecha ? String(e.fecha).split("T")[0] : "", desc: e.descripcion||"", place: e.lugar||""
@@ -374,43 +404,38 @@ function createApi(db, setDb) {
     addPayment: async (d) => {
       const respId = db.students.find(s=>s.id===d.sid)?.respId || `RESP-${d.sid}`;
       try {
-        await apiFetch("/api/pagos", {method:"POST", body: JSON.stringify({
-          monto_total: d.total,
-          monto_abonado: d.paid || 0,
-          tipo_pago: d.concept,
-          metodo_pago: d.installments > 1 ? "A plazos" : "Contado",
-          estado_pago: "Pendiente",
-          num_control_responsable: respId
-        })});
-      } catch(e) {}
-      mutate(db=>({payments:[...db.payments,{...d,id:uid("p"),sid:respId}]}));
+        // La pantalla usa lo que regresa el servidor: así el pago trae su ID real
+        const resp = await apiFetch("/api/pagos", {method:"POST", body: pagoBody(d, respId)});
+        mutate(db=>({payments:[...db.payments,mapPago(resp)]}));
+        return true;
+      } catch(e) {
+        alert(`No se pudo registrar el pago: ${e.message}`);
+        return false;
+      }
     },
     updatePayment: async (id, d) => {
       const respId = db.students.find(s=>s.id===d.sid)?.respId || `RESP-${d.sid}`;
-      const estado = d.status==="liquidado"?"Liquidado":d.status==="vencido"?"Vencido":"Pendiente";
       try {
-        await apiFetch(`/api/pagos/${id}`, {method:"PUT", body: JSON.stringify({
-          monto_total: d.total,
-          monto_abonado: d.paid || 0,
-          fecha_pago: d.start,
-          metodo_pago: d.installments > 1 ? "A plazos" : "Contado",
-          tipo_pago: d.concept,
-          estado_pago: estado,
-          num_control_responsable: respId
-        })});
-      } catch(e) { console.error(e); }
-      mutate(db=>({payments:db.payments.map(p=>p.id===id?{...p,...d,sid:respId}:p)}));
+        const resp = await apiFetch(`/api/pagos/${id}`, {method:"PUT", body: pagoBody(d, respId)});
+        mutate(db=>({payments:db.payments.map(p=>p.id===id?mapPago(resp):p)}));
+        return true;
+      } catch(e) {
+        alert(`No se pudo actualizar el pago: ${e.message}`);
+        return false;
+      }
     },
     deletePayment: async (id) => {
-      try { await apiFetch(`/api/pagos/${id}`, {method:"DELETE"}); } catch(e) { console.error(e); }
-      mutate(db=>({payments:db.payments.filter(p=>p.id!==id)}));
+      try {
+        await apiFetch(`/api/pagos/${id}`, {method:"DELETE"});
+        mutate(db=>({payments:db.payments.filter(p=>p.id!==id)}));
+      } catch(e) { alert(`No se pudo eliminar el pago: ${e.message}`); }
     },
     pagarMensualidad: async (student, checked, mes, anio, fecha) => {
       const respId = student.respId || `RESP-${student.id}`;
       const existing = db.payments.find(p => {
         if (p.concept !== "Mensualidad") return false;
         if (p.sid !== respId) return false;
-        const d = new Date(p.start);
+        const d = parseDate(p.start);
         return d.getMonth() === mes && d.getFullYear() === anio;
       });
       if (checked && !existing) {
@@ -433,23 +458,20 @@ function createApi(db, setDb) {
               start: fechaPago, nextDue:null, status:"liquidado", notes:""
             }]}));
           }
-        } catch(e){ console.error("Error pagando mensualidad:", e); }
+        } catch(e){ alert(`No se pudo registrar la mensualidad: ${e.message}`); }
       } else if (!checked && existing) {
         try {
           await apiFetch(`/api/pagos/${existing.id}`, {method:"DELETE"});
           mutate(db=>({payments:db.payments.filter(p=>p.id!==existing.id)}));
-        } catch(e){ console.error("Error:", e); }
+        } catch(e){ alert(`No se pudo quitar la mensualidad: ${e.message}`); }
       }
     },
+    // El monto de la cuota lo calcula el servidor
     registerInstallment: async (id) => {
-      try { await apiFetch(`/api/pagos/${id}/abonar`, {method:"PUT", body: JSON.stringify({abono: db.payments.find(p=>p.id===id)?.instAmt || 0})}); } catch(e) {}
-      mutate(db=>({
-        payments:db.payments.map(p=>{
-          if(p.id!==id) return p;
-          const ni=p.instPaid+1,np=p.paid+p.instAmt,done=ni>=p.installments;
-          return{...p,instPaid:ni,paid:np,status:done?"liquidado":"en_proceso",nextDue:done?null:p.nextDue};
-        })
-      }));
+      try {
+        const resp = await apiFetch(`/api/pagos/${id}/abonar`, {method:"PUT", body: JSON.stringify({})});
+        mutate(db=>({payments:db.payments.map(p=>p.id===id?mapPago(resp):p)}));
+      } catch(e) { alert(`No se pudo registrar el pago: ${e.message}`); }
     },
     // ── EVENTOS (solo local por ahora) ──
     getAdmin:()=>db.admin,
@@ -1568,7 +1590,7 @@ const MensualidadesPanel = ({api}) => {
     if(p.concept!=="Mensualidad") return false;
     const respId = s.respId||`RESP-${s.id}`;
     if(p.sid!==respId) return false;
-    const d = new Date(p.start);
+    const d = parseDate(p.start);
     return d.getMonth()===mes && d.getFullYear()===anio;
   });
   const totalPagados = students.filter(s=>!!pagoDeAlumno(s)).length;
@@ -1631,10 +1653,11 @@ const MensualidadesPanel = ({api}) => {
 
 const PaymentForm = ({initial,students,onSave,onClose}) => {
   const empty={sid:"",concept:"",total:"",installments:1,instAmt:"",start:todayStr(),nextDue:"",status:"en_proceso",notes:""};
-  const [f,setF]=useState(initial?{...initial}:empty);
+  // El pago guarda al responsable, pero el selector de este formulario es por alumno
+  const [f,setF]=useState(initial?{...initial,sid:students.find(s=>s.respId===initial.sid)?.id||""}:empty);
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
   const instPaid=initial?initial.instPaid:0;const paid=initial?initial.paid:0;
-  const submit=(e)=>{e.preventDefault();onSave({...f,total:+f.total,installments:+f.installments,instAmt:+f.instAmt,instPaid,paid});onClose();};
+  const submit=async(e)=>{e.preventDefault();if(await onSave({...f,total:+f.total,installments:+f.installments,instAmt:+f.instAmt,instPaid,paid}))onClose();};
   return(
     <form onSubmit={submit}>
       <div className="form-row">
@@ -1662,7 +1685,7 @@ const AdminPayments = ({api}) => {
   const [modal,setModal]=useState(null);
   const [tab,setTab]=useState("mensualidades");
   const students=api.getStudents();const payments=api.getPayments();
-  const getName=(sid)=>students.find(s=>s.id===sid)?.name||students.find(s=>`RESP-${s.id}`===sid)?.name||"—";
+  const getName=(sid)=>students.find(s=>s.respId===sid)?.name||"—";
   return(
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
@@ -2077,7 +2100,7 @@ const AdminHome = ({api,setTab,isMaestro}) => {
   ];
   // El maestro solo ve la tarjeta de alumnos
   const stats = isMaestro ? allStats.filter(s=>s.label==="Alumnos activos") : allStats;
-  const getName=(sid)=>students.find(s=>s.id===sid)?.name||"—";
+  const getName=(sid)=>students.find(s=>s.respId===sid)?.name||"—";
   const pending=payments.filter(p=>p.status==="en_proceso").slice(0,3);
   const coming=events.filter(e=>e.date>=ts).slice(0,3);
   return(
@@ -2705,7 +2728,7 @@ const StudentPortal = ({session,api,onLogout}) => {
               const hoy=new Date(); hoy.setHours(0,0,0,0);
               const mes=hoy.getMonth(), anio=hoy.getFullYear();
               const dia=student.diaPago||1;
-              const pagada=payments.some(p=>{ if(p.concept!=="Mensualidad")return false; const d=new Date(p.start); return d.getMonth()===mes&&d.getFullYear()===anio; });
+              const pagada=payments.some(p=>{ if(p.concept!=="Mensualidad")return false; const d=parseDate(p.start); return d.getMonth()===mes&&d.getFullYear()===anio; });
               const due=new Date(anio,mes,dia);
               const vencida=!pagada&&hoy>due;
               const color=pagada?"#4ade80":vencida?"#f87171":"#d4960f";
@@ -2870,15 +2893,7 @@ function App() {
           medNotes: a.notas_medicas || ""
         }
       })) : [];
-      const mappedPayments = Array.isArray(payments) ? payments.map(p => ({
-        id: String(p.id_pago), sid: p.num_control_responsable,
-        concept: p.tipo_pago||"Pago", total: parseFloat(p.monto_total)||0,
-        paid: parseFloat(p.monto_abonado)||0,
-        installments: p.metodo_pago==="A plazos"?4:1,
-        instPaid: p.estado_pago==="Liquidado"?1:0,
-        instAmt: parseFloat(p.monto_total)||0, start: p.fecha_pago||todayStr(),
-        nextDue:null, status: p.estado_pago==="Liquidado"?"liquidado":p.estado_pago==="Vencido"?"vencido":"en_proceso", notes:""
-      })) : [];
+      const mappedPayments = Array.isArray(payments) ? payments.map(mapPago) : [];
       const mappedExams = Array.isArray(exams) ? exams.map(x => ({
         id: String(x.id_examen), sid: x.num_control_alumno,
         date: x.fecha ? x.fecha.split('T')[0] : todayStr(),
