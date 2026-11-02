@@ -32,7 +32,7 @@ function vEntrar(msg) {
   document.title = 'Entrar — Dojang';
   main.innerHTML = `<div class="entrar">${LOGOS}<h1>Dojang</h1><p>MMW MDK La Industrial</p>
   <form id="f-entrar" novalidate><label class="campo"><span>ID</span><input id="f-id" autocomplete="username" autocapitalize="characters" spellcheck="false"></label><label class="campo"><span>Contraseña</span><input id="f-pass" type="password" autocomplete="current-password"></label><p class="err" id="f-err" role="alert" ${msg ? '' : 'hidden'}>${esc(msg || '')}</p><button class="btn btn-1 btn-g" id="f-btn">Entrar</button></form>
-  <p class="ayuda">Familias: sirve el ID de cualquiera de sus hijos.<br>¿Primera vez? Escribe CAMBIAR como contraseña y elige la tuya.</p></div>`;
+  <p class="ayuda">Familias: sirve el ID de cualquiera de sus hijos.<br>¿Primera vez? Pide tu acceso en el dojang.</p></div>`;
   document.getElementById('f-id').focus();
 }
 function vCambiar(temp) {
